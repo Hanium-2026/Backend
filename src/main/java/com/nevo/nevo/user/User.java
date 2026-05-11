@@ -35,12 +35,17 @@ public class User {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
-    // 1. 계정 탈퇴 (Soft delete) 처리
+    // 사용자 이름 수정 메서드
+    public void updateName(String name) {
+        this.name = name;
+    }
+
+    // 계정 탈퇴 (Soft delete) 처리 메서드
     public void softDelete() {
         this.deletedAt = LocalDateTime.now();
     }
 
-    // 2. FCM 토큰 업데이트
+    // FCM 토큰 업데이트 메서드
     public void updateFcmToken(String fcmToken) {
         this.fcmToken = fcmToken;
     }
