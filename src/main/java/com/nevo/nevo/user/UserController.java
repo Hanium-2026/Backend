@@ -1,10 +1,9 @@
 package com.nevo.nevo.user;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/users")
@@ -17,9 +16,26 @@ public class UserController {
      * 사용자 기본 정보 조회
      * GET /api/users/me
      */
-    @GetMapping
-    public ResponseEntity<?> getMyInfo() {
-        return ResponseEntity.ok().body("내 정보 조회 성공");
+    @GetMapping("/me")
+    public ResponseEntity<UserResponseDto> getMyInfo() {
+        return ResponseEntity.ok().build();
     }
 
+    @PutMapping("/me")
+    public ResponseEntity<UserResponseDto> updateMyInfo() {
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/device-token")
+    public ResponseEntity<Void> updateDeviceToken(
+            @Valid
+            @RequestBody FcmTokenRequest fcmTokenRequest
+    ) {
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/me")
+    public ResponseEntity<Void> deleteAccount() {
+        return ResponseEntity.noContent().build();
+    }
 }
