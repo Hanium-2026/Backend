@@ -12,20 +12,28 @@ public class UserController {
 
     private final UserService userService;
 
+    // JWT 인증 로직이 완성되기 전까지 사용할 임시 ID
+    private final Long TEMP_USER_ID = 1L;
+
     /**
      * 사용자 기본 정보 조회
      */
     @GetMapping("/me")
     public ResponseEntity<UserResponseDto> getMyInfo() {
-        return ResponseEntity.ok().build();
+        UserResponseDto response = userService.getMyInfo(TEMP_USER_ID);
+        return ResponseEntity.ok(response);
     }
 
     /**
      * 사용자 기본 정보 수정
      */
     @PutMapping("/me")
-    public ResponseEntity<UserResponseDto> updateMyInfo() {
-        return ResponseEntity.ok().build();
+    public ResponseEntity<UserResponseDto> updateMyInfo(
+            @Valid
+            @RequestBody UserUpdateRequestDto updateRequestDto
+    ) {
+        UserResponseDto response = userService.updateMyInfo(TEMP_USER_ID, updateRequestDto);
+        return ResponseEntity.ok(response);
     }
 
     /**
@@ -36,6 +44,7 @@ public class UserController {
             @Valid
             @RequestBody FcmTokenRequest fcmTokenRequest
     ) {
+        userService.updateDeviceToken(TEMP_USER_ID, fcmTokenRequest);
         return ResponseEntity.ok().build();
     }
 
@@ -44,6 +53,7 @@ public class UserController {
      */
     @DeleteMapping("/me")
     public ResponseEntity<Void> deleteAccount() {
+        userService.deleteAccount(TEMP_USER_ID);
         return ResponseEntity.noContent().build();
     }
 }
