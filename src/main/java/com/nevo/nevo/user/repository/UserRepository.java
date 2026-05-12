@@ -1,5 +1,6 @@
-package com.nevo.nevo.user;
+package com.nevo.nevo.user.repository;
 
+import com.nevo.nevo.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

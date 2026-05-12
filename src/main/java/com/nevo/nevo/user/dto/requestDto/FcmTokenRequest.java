@@ -1,4 +1,4 @@
-package com.nevo.nevo.user;
+package com.nevo.nevo.user.dto.requestDto;
 
 import jakarta.validation.constraints.NotBlank;
 

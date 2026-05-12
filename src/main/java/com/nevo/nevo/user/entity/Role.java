@@ -1,4 +1,4 @@
-package com.nevo.nevo.user;
+package com.nevo.nevo.user.entity;
 
 public enum Role {
     WARD, // 노약자
