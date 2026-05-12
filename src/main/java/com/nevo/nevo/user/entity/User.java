@@ -1,4 +1,4 @@
-package com.nevo.nevo.user;
+package com.nevo.nevo.user.entity;
 
 import jakarta.persistence.*;
 import lombok.Getter;

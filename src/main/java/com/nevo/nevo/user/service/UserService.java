@@ -1,5 +1,10 @@
-package com.nevo.nevo.user;
+package com.nevo.nevo.user.service;
 
+import com.nevo.nevo.user.dto.requestDto.FcmTokenRequest;
+import com.nevo.nevo.user.dto.requestDto.UserUpdateRequestDto;
+import com.nevo.nevo.user.dto.responseDto.UserResponseDto;
+import com.nevo.nevo.user.entity.User;
+import com.nevo.nevo.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
