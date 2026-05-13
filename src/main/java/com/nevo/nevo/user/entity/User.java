@@ -1,15 +1,18 @@
 package com.nevo.nevo.user.entity;
 
+import com.nevo.nevo.global.entity.BaseEntity;
 import jakarta.persistence.*;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "users")
 @Getter
 @NoArgsConstructor
-public class User {
+public class User extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -34,6 +37,7 @@ public class User {
 
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
+        
 
     // 사용자 이름 수정 메서드
     public void updateName(String name) {
@@ -42,11 +46,21 @@ public class User {
 
     // 계정 탈퇴 (Soft delete) 처리 메서드
     public void softDelete() {
-        this.deletedAt = LocalDateTime.now();
+        if (this.deletedAt == null) {
+            this.deletedAt = LocalDateTime.now();
+        }
     }
 
     // FCM 토큰 업데이트 메서드
     public void updateFcmToken(String fcmToken) {
         this.fcmToken = fcmToken;
+    }
+
+    @Builder
+    public User(String email, String password, String name, Role role) {
+        this.email = email;
+        this.password = password;
+        this.name = name;
+        this.role = role;
     }
 }

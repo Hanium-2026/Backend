@@ -1,12 +1,15 @@
 package com.nevo.nevo.user.controller;
 
-import com.nevo.nevo.user.dto.requestDto.FcmTokenRequest;
-import com.nevo.nevo.user.dto.responseDto.UserResponseDto;
+import com.nevo.nevo.auth.jwt.JwtAuthentication;
+import com.nevo.nevo.global.exception.SuccessResponse;
+import com.nevo.nevo.user.dto.UserRequest;
+import com.nevo.nevo.user.dto.UserResponse;
+import com.nevo.nevo.user.exception.code.UserSuccessCode;
 import com.nevo.nevo.user.service.UserService;
-import com.nevo.nevo.user.dto.requestDto.UserUpdateRequestDto;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -16,48 +19,57 @@ public class UserController {
 
     private final UserService userService;
 
-    // JWT 인증 로직이 완성되기 전까지 사용할 임시 ID
-    private final Long TEMP_USER_ID = 1L;
-
     /**
      * 사용자 기본 정보 조회
      */
     @GetMapping("/me")
-    public ResponseEntity<UserResponseDto> getMyInfo() {
-        UserResponseDto response = userService.getMyInfo(TEMP_USER_ID);
-        return ResponseEntity.ok(response);
+    public ResponseEntity<SuccessResponse<UserResponse.MyInfo>> getMyInfo(
+            @AuthenticationPrincipal JwtAuthentication auth
+    ) {
+        UserResponse.MyInfo data = userService.getMyInfo(auth.userId());
+        return ResponseEntity.ok(
+                SuccessResponse.of(UserSuccessCode.USER_FOUND, data)
+        );
     }
 
     /**
      * 사용자 기본 정보 수정
      */
     @PutMapping("/me")
-    public ResponseEntity<UserResponseDto> updateMyInfo(
-            @Valid
-            @RequestBody UserUpdateRequestDto updateRequestDto
+    public ResponseEntity<SuccessResponse<UserResponse.MyInfo>> updateMyInfo(
+            @AuthenticationPrincipal JwtAuthentication auth,
+            @Valid @RequestBody UserRequest.UpdateName updateRequestDto
     ) {
-        UserResponseDto response = userService.updateMyInfo(TEMP_USER_ID, updateRequestDto);
-        return ResponseEntity.ok(response);
+        UserResponse.MyInfo data = userService.updateMyInfo(auth.userId(), updateRequestDto);
+        return ResponseEntity.ok(
+                SuccessResponse.of(UserSuccessCode.USER_UPDATED, data)
+        );
     }
 
     /**
      * 기기 푸시 토큰(FCM TOKEN) 저장
      */
     @PostMapping("/device-token")
-    public ResponseEntity<Void> updateDeviceToken(
-            @Valid
-            @RequestBody FcmTokenRequest fcmTokenRequest
+    public ResponseEntity<SuccessResponse<Void>> updateDeviceToken(
+            @AuthenticationPrincipal JwtAuthentication auth,
+            @Valid @RequestBody UserRequest.UpdateFcmToken fcmTokenRequest
     ) {
-        userService.updateDeviceToken(TEMP_USER_ID, fcmTokenRequest);
-        return ResponseEntity.ok().build();
+        userService.updateDeviceToken(auth.userId(), fcmTokenRequest);
+        return ResponseEntity.ok(
+                SuccessResponse.of(UserSuccessCode.FCM_TOKEN_UPDATED)
+        );
     }
 
     /**
      * 사용자 계정 탈퇴 (Soft Delete)
      */
     @DeleteMapping("/me")
-    public ResponseEntity<Void> deleteAccount() {
-        userService.deleteAccount(TEMP_USER_ID);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<SuccessResponse<Void>> deleteAccount(
+            @AuthenticationPrincipal JwtAuthentication auth
+    ) {
+        userService.deleteAccount(auth.userId());
+        return ResponseEntity.ok(
+                SuccessResponse.of(UserSuccessCode.USER_DELETED)
+        );
     }
 }
