@@ -1,9 +1,10 @@
 package com.nevo.nevo.user.service;
 
-import com.nevo.nevo.user.dto.requestDto.FcmTokenRequest;
-import com.nevo.nevo.user.dto.requestDto.UserUpdateRequestDto;
-import com.nevo.nevo.user.dto.responseDto.UserResponseDto;
+import com.nevo.nevo.global.exception.CustomException;
+import com.nevo.nevo.user.dto.UserRequest;
+import com.nevo.nevo.user.dto.UserResponse;
 import com.nevo.nevo.user.entity.User;
+import com.nevo.nevo.user.exception.code.UserErrorCode;
 import com.nevo.nevo.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,33 +19,30 @@ public class UserService {
      * 1. 사용자 정보 조회
      */
     @Transactional(readOnly = true)
-    public UserResponseDto getMyInfo(Long userId) {
-        User user = userRepository.findById(userId).orElseThrow(() ->
-                new IllegalArgumentException("사용자를 찾을 수 없습니다. ID : " + userId));
+    public UserResponse.MyInfo getMyInfo(Long userId) {
+        User user = findActiveUser(userId);
 
-        return UserResponseDto.from(user);
+        return UserResponse.MyInfo.from(user);
     }
 
     /**
      * 2. 사용자 정보 수정
      */
     @Transactional
-    public UserResponseDto updateMyInfo(Long userId, UserUpdateRequestDto requestDto) {
-        User user = userRepository.findById(userId).orElseThrow(() ->
-                new IllegalArgumentException("사용자를 찾을 수 없습니다. ID : " + userId));
+    public UserResponse.MyInfo updateMyInfo(Long userId, UserRequest.UpdateName requestDto) {
+        User user = findActiveUser(userId);
 
         user.updateName(requestDto.name());
 
-        return UserResponseDto.from(user);
+        return UserResponse.MyInfo.from(user);
     }
 
     /**
      * 3. 기기 푸시 토큰(FCM Token) 저장
      */
     @Transactional
-    public void updateDeviceToken(Long userId, FcmTokenRequest request) {
-        User user = userRepository.findById(userId).orElseThrow(() ->
-                new IllegalArgumentException("사용자를 찾을 수 없습니다. ID : " + userId));
+    public void updateDeviceToken(Long userId, UserRequest.UpdateFcmToken request) {
+        User user = findActiveUser(userId);
 
         user.updateFcmToken(request.fcmToken());
     }
@@ -54,9 +52,13 @@ public class UserService {
      */
     @Transactional
     public void deleteAccount(Long userId) {
-        User user = userRepository.findById(userId).orElseThrow(() ->
-                new IllegalArgumentException("사용자를 찾을 수 없습니다. ID : " + userId));
+        User user = findActiveUser(userId);
 
         user.softDelete();
+    }
+
+    private User findActiveUser(Long userId) {
+        return userRepository.findByIdAndDeletedAtIsNull(userId)
+                .orElseThrow(() -> new CustomException(UserErrorCode.USER_NOT_FOUND));
     }
 }
