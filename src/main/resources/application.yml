@@ -26,15 +26,15 @@ spring:
   mail:
     host: ${MAIL_HOST:smtp.gmail.com}
     port: ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME}       # 필수 입력: 발송자 Gmail 계정 (예: noreply@gmail.com)
-    password: ${MAIL_PASSWORD}       # 필수 입력: Gmail 앱 비밀번 계정호 16자리 (Google → 보안 → 앱 비밀번호)
+    username: ${MAIL_USERNAME:nevo123@gmail.com} # 필수 입력: 발송자 Gmail 계정: 변경필요
+    password: ${MAIL_PASSWORD:nevo123!}          # 필수 입력: Gmail 앱 비밀번 계정호 16자리: 변경 필요
     properties:
       mail.smtp.auth: true
       mail.smtp.starttls.enable: true
 
 # JWT 설정
 jwt:
-  secret: ${JWT_SECRET}              # 필수 입력: 32자 이상의 랜덤 문자열 (토큰 서명 키)
+  secret: ${JWT_SECRET:nevo-walkcare-dev-secret-key-must-be-at-least-32-bytes} # 필수 입력: 32자 이상의 랜덤 문자열 (토큰 서명 키): 변경필요
   access-expiration: 3600000         # 액세스 토큰 만료: 1시간 (ms)
   refresh-expiration: 2592000000     # 리프레시 토큰 만료: 30일 (ms)
 
