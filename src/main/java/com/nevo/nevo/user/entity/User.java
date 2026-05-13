@@ -5,7 +5,6 @@ import jakarta.persistence.*;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Builder;
 
 import java.time.LocalDateTime;
 
@@ -47,7 +46,9 @@ public class User extends BaseEntity {
 
     // 계정 탈퇴 (Soft delete) 처리 메서드
     public void softDelete() {
-        this.deletedAt = LocalDateTime.now();
+        if (this.deletedAt == null) {
+            this.deletedAt = LocalDateTime.now();
+        }
     }
 
     // FCM 토큰 업데이트 메서드
