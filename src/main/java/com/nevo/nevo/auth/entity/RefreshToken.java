@@ -1,0 +1,45 @@
+package com.nevo.nevo.auth.entity;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+@Entity
+@Table(name = "refresh_tokens")
+@Getter
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+public class RefreshToken {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "token_hash", nullable = false)
+    private String tokenHash;
+
+    @Column(name = "device_id", nullable = false)
+    private String deviceId;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean revoked = false;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean used = false;
+
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
+
+    public void revoke() {
+        this.revoked = true;
+    }
+
+    public void markUsed() {
+        this.used = true;
+    }
+}
