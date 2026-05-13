@@ -1,6 +1,7 @@
 package com.nevo.nevo.ward.entity;
 
 import com.nevo.nevo.global.entity.BaseEntity;
+import com.nevo.nevo.user.entity.User;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -17,6 +18,10 @@ public class Ward extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "ward_id")
     private Long id;
+
+    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false, unique = true)
+    private User user;
 
     @Column(name = "height")
     private Double height;

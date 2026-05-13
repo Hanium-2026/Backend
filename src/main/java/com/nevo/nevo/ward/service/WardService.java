@@ -40,7 +40,6 @@ public class WardService {
         return WardResponse.PhysicalInfo.from(ward);
     }
 
-    @Transactional
     private Ward findWard(Long wardId) {
         return wardRepository.findById(wardId)
                 .orElseThrow(() -> new CustomException(WardErrorCode.WARD_NOT_FOUND));
