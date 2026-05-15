@@ -1,8 +1,8 @@
 package com.nevo.nevo.ward.service;
 
 import com.nevo.nevo.global.exception.CustomException;
-import com.nevo.nevo.ward.dto.WardRequest;
-import com.nevo.nevo.ward.dto.WardResponse;
+import com.nevo.nevo.ward.dto.request.WardRequest;
+import com.nevo.nevo.ward.dto.response.WardResponse;
 import com.nevo.nevo.ward.entity.Ward;
 import com.nevo.nevo.ward.exception.code.WardErrorCode;
 import com.nevo.nevo.ward.repository.WardRepository;
