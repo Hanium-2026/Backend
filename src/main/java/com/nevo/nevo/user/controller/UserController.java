@@ -61,6 +61,19 @@ public class UserController {
     }
 
     /**
+     * 기기 푸시 토큰(FCM TOKEN) 삭제 (로그아웃 시 클라이언트가 호출)
+     */
+    @DeleteMapping("/device-token")
+    public ResponseEntity<SuccessResponse<Void>> deleteDeviceToken(
+            @AuthenticationPrincipal JwtAuthentication auth
+    ) {
+        userService.deleteDeviceToken(auth.userId());
+        return ResponseEntity.ok(
+                SuccessResponse.of(UserSuccessCode.FCM_TOKEN_DELETED)
+        );
+    }
+
+    /**
      * 사용자 계정 탈퇴 (Soft Delete)
      */
     @DeleteMapping("/me")

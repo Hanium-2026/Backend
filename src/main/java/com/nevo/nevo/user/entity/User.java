@@ -51,14 +51,17 @@ public class User extends BaseEntity {
         }
     }
 
-    // FCM 토큰 업데이트 메서드
     public void updateFcmToken(String fcmToken) {
         this.fcmToken = fcmToken;
     }
 
+    public void clearFcmToken() {
+        this.fcmToken = null;
+
     // 비밀번호 재설정 메서드
     public void updatePassword(String encodedPassword) {
         this.password = encodedPassword;
+
     }
 
     @Builder
