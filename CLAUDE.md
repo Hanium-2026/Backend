@@ -59,17 +59,18 @@ username: nevo / password: nevo_backend
 | notification_settings | — | 사용자/알림 담당 |
 | User_Device_Tokens | — | 사용자/알림 담당 |
 | ward_guardian_link | — | 사용자/알림 담당 |
-| locations | — | 사용자/알림 담당 |
+| locations | V9 | 사용자/알림 담당 |
+| locations ward_id UNIQUE 제약 | V10 | 사용자/알림 담당 |
 | alerts | — | 사용자/알림 담당 |
 | refresh_tokens | V4 | 인증/보행 담당 |
 | password_reset_tokens | V5 | 인증/보행 담당 |
 | consents | V6 | 인증/보행 담당 |
 | refresh_tokens token_hash 인덱스 | V7 | 인증/보행 담당 |
 | refresh_tokens (user_id, device_id) 복합 인덱스 | V8 | 인증/보행 담당 |
-| gait_sessions | V9 예정 | 인증/보행 담당 |
-| session_scores | V10 예정 | 인증/보행 담당 |
-| gait_reports | V11 예정 | 인증/보행 담당 |
-| daily_scores | V12 예정 | 인증/보행 담당 |
+| gait_sessions | V11 예정 | 인증/보행 담당 |
+| session_scores | V12 예정 | 인증/보행 담당 |
+| gait_reports | V13 예정 | 인증/보행 담당 |
+| daily_scores | V14 예정 | 인증/보행 담당 |
 
 ---
 
@@ -102,6 +103,13 @@ username: nevo / password: nevo_backend
 |--------|------|------|------|
 | GET | /api/gait/reports/{sessionId} | 단건 세션 리포트 조회 | 미구현 |
 | GET | /api/gait/reports/weekly | 주간 보행 통계 조회 | 미구현 |
+
+### 위치 — JWT 필요 / 담당: 사용자/알림
+
+| 메서드 | 경로 | 설명 | 구현 |
+|--------|------|------|------|
+| POST | /api/locations | 노약자 현재 위치 업로드 (WARD 전용) | ✅ |
+| GET  | /api/locations/stream/{wardId} | 실시간 위치 SSE 구독 (GUARDIAN 전용) | ✅ |
 
 ---
 
@@ -139,6 +147,17 @@ com.nevo.nevo/
 │   ├── entity/           ← GaitReport, DailyScore
 │   ├── repository/       ← GaitReportRepository, DailyScoreRepository
 │   └── exception/code/   ← ReportErrorCode, ReportSuccessCode
+│
+├── location/             ← 사용자/알림 담당 소유
+│   ├── controller/       ← LocationController
+│   ├── service/          ← LocationService
+│   ├── sse/              ← SseEmitterManager
+│   ├── dto/
+│   │   ├── request/      ← LocationRequest
+│   │   └── response/     ← LocationResponse
+│   ├── entity/           ← Location
+│   ├── repository/       ← LocationRepository
+│   └── exception/code/   ← LocationErrorCode, LocationSuccessCode
 │
 ├── ward/                 ← 사용자/알림 담당 소유
 │   ├── controller/       ← WardController
@@ -206,6 +225,7 @@ public class AuthResponse {
 | 리포트 | `report/exception/code/ReportErrorCode` | `report/exception/code/ReportSuccessCode` |
 | 사용자 | `user/exception/code/UserErrorCode` | `user/exception/code/UserSuccessCode` |
 | 피보호자 | `ward/exception/code/WardErrorCode` | `ward/exception/code/WardSuccessCode` |
+| 위치 | `location/exception/code/LocationErrorCode` | `location/exception/code/LocationSuccessCode` |
 
 ### Service @Transactional 패턴
 - 클래스 레벨: `@Transactional(readOnly = true)` 기본 적용
@@ -236,3 +256,8 @@ public class AuthResponse {
   - 매일 새벽 3시 만료 데이터 자동 삭제 (`@Scheduled`)
 - **세션 종료 시**: 서버가 `daily_scores` UPSERT 자동 처리
 - **위험 감지 이벤트**: 인증/보행 담당이 `StrokeDangerEvent` 발행 → 사용자/알림 담당이 `@EventListener`로 수신 후 FCM 처리
+- **실시간 위치**: DB UPSERT(ward당 최신 1건) + SSE 메모리 push 병행
+  - `SseEmitterManager`가 wardId별 `Set<SseEmitter>` 관리 → 보호자 여러 명 동시 구독 가능
+  - SSE 타임아웃 1시간, 재연결은 클라이언트 책임
+  - 보호자 구독 즉시 DB 최신 위치 전송 (빈 화면 방지)
+  - POST(WARD 전용) → UPSERT + SSE push / GET stream(GUARDIAN 전용) → SSE 구독
