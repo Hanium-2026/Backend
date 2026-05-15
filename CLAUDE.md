@@ -56,8 +56,8 @@ username: nevo / password: nevo_backend
 | users | V1 | 사용자/알림 담당 (SQL 작성) |
 | wards | V2 | 사용자/알림 담당 (SQL 작성) |
 | wards user_id FK 추가 | V3 | 사용자/알림 담당 |
+| users.fcm_token | V1 포함 | 사용자/알림 담당 (단일 기기 FCM 토큰, 별도 테이블 없음) |
 | notification_settings | — | 사용자/알림 담당 |
-| User_Device_Tokens | — | 사용자/알림 담당 |
 | ward_guardian_link | — | 사용자/알림 담당 |
 | locations | V9 | 사용자/알림 담당 |
 | locations ward_id UNIQUE 제약 | V10 | 사용자/알림 담당 |
