@@ -157,7 +157,7 @@ com.nevo.nevo/
 │   │   └── response/     ← LocationResponse
 │   ├── entity/           ← Location
 │   ├── repository/       ← LocationRepository
-│   └── exception/code/   ← LocationErrorCode
+│   └── exception/code/   ← LocationErrorCode, LocationSuccessCode
 │
 ├── ward/                 ← 사용자/알림 담당 소유
 │   ├── controller/       ← WardController
@@ -225,7 +225,7 @@ public class AuthResponse {
 | 리포트 | `report/exception/code/ReportErrorCode` | `report/exception/code/ReportSuccessCode` |
 | 사용자 | `user/exception/code/UserErrorCode` | `user/exception/code/UserSuccessCode` |
 | 피보호자 | `ward/exception/code/WardErrorCode` | `ward/exception/code/WardSuccessCode` |
-| 위치 | `location/exception/code/LocationErrorCode` | — |
+| 위치 | `location/exception/code/LocationErrorCode` | `location/exception/code/LocationSuccessCode` |
 
 ### Service @Transactional 패턴
 - 클래스 레벨: `@Transactional(readOnly = true)` 기본 적용

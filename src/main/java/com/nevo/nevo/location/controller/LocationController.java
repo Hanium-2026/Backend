@@ -5,9 +5,8 @@ import com.nevo.nevo.global.exception.CustomException;
 import com.nevo.nevo.global.exception.SuccessResponse;
 import com.nevo.nevo.location.dto.request.LocationRequest;
 import com.nevo.nevo.location.exception.code.LocationErrorCode;
+import com.nevo.nevo.location.exception.code.LocationSuccessCode;
 import com.nevo.nevo.location.service.LocationService;
-import com.nevo.nevo.ward.exception.code.WardErrorCode;
-import com.nevo.nevo.ward.exception.code.WardSuccessCode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -32,9 +31,9 @@ public class LocationController {
             @AuthenticationPrincipal JwtAuthentication auth,
             @Valid @RequestBody LocationRequest.Upload request
     ) {
-        if (auth.wardId() == null) throw new CustomException(WardErrorCode.WARD_ACCESS_DENIED);
+        if (auth.wardId() == null) throw new CustomException(LocationErrorCode.WARD_ONLY);
         locationService.updateLocation(auth.wardId(), request.latitude(), request.longitude());
-        return ResponseEntity.ok(SuccessResponse.of(WardSuccessCode.WARD_LOCATION_UPDATED));
+        return ResponseEntity.ok(SuccessResponse.of(LocationSuccessCode.LOCATION_UPDATED));
     }
 
     @GetMapping(value = "/stream/{wardId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
