@@ -68,15 +68,4 @@ public class JwtUtil {
         }
     }
 
-    public Long getUserId(String token) {
-        return parseClaims(token).get("userId", Long.class);
-    }
-
-    public Long getWardId(String token) {
-        return parseClaims(token).get("wardId", Long.class);
-    }
-
-    public String getRole(String token) {
-        return parseClaims(token).get("role", String.class);
-    }
 }

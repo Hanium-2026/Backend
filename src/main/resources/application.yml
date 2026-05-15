@@ -35,7 +35,7 @@ spring:
 # JWT 설정
 jwt:
   secret: ${JWT_SECRET:nevo-walkcare-dev-secret-key-must-be-at-least-32-bytes} # 필수 입력: 32자 이상의 랜덤 문자열 (토큰 서명 키): 변경필요
-  access-expiration: 3600000         # 액세스 토큰 만료: 1시간 (ms)
+  access-expiration: 1800000         # 액세스 토큰 만료: 30분 (ms)
   refresh-expiration: 2592000000     # 리프레시 토큰 만료: 30일 (ms)
 
 # Swagger UI 경로 설정

@@ -57,4 +57,22 @@ public class AuthController {
         AuthResponse.Refresh response = authService.refresh(request);
         return ResponseEntity.ok(SuccessResponse.of(AuthSuccessCode.TOKEN_REFRESH_SUCCESS, response));
     }
+
+    @PostMapping("/password-reset/request")
+    @Operation(summary = "비밀번호 재설정 요청", description = "이메일로 재설정 토큰을 발송합니다.")
+    public ResponseEntity<SuccessResponse<Void>> requestPasswordReset(
+            @RequestBody @Valid AuthRequest.PasswordResetRequest request)
+    {
+        authService.requestPasswordReset(request.email());
+        return ResponseEntity.ok(SuccessResponse.of(AuthSuccessCode.PASSWORD_RESET_REQUEST_SUCCESS, null));
+    }
+
+    @PostMapping("/password-reset/confirm")
+    @Operation(summary = "비밀번호 재설정 확인", description = "토큰 검증 후 비밀번호를 변경합니다.")
+    public ResponseEntity<SuccessResponse<Void>> confirmPasswordReset(
+            @RequestBody @Valid AuthRequest.PasswordResetConfirm request)
+    {
+        authService.confirmPasswordReset(request.token(), request.newPassword());
+        return ResponseEntity.ok(SuccessResponse.of(AuthSuccessCode.PASSWORD_RESET_SUCCESS, null));
+    }
 }

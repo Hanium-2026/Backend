@@ -2,9 +2,11 @@ package com.nevo.nevo.auth.service;
 
 import com.nevo.nevo.auth.dto.request.AuthRequest;
 import com.nevo.nevo.auth.dto.response.AuthResponse;
+import com.nevo.nevo.auth.entity.PasswordResetToken;
 import com.nevo.nevo.auth.entity.RefreshToken;
 import com.nevo.nevo.auth.exception.code.AuthErrorCode;
 import com.nevo.nevo.auth.jwt.JwtUtil;
+import com.nevo.nevo.auth.repository.PasswordResetTokenRepository;
 import com.nevo.nevo.auth.repository.RefreshTokenRepository;
 import com.nevo.nevo.global.exception.CustomException;
 import com.nevo.nevo.user.entity.Consent;
@@ -22,7 +24,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.Base64;
 import java.util.List;
 
 @Service
@@ -34,9 +38,13 @@ public class AuthService {
     private final WardRepository wardRepository;
     private final ConsentRepository consentRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final MailService mailService;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
+    // 회원가입 - POST /api/auth/sign-up
     @Transactional
     public AuthResponse.SignUp signUp(AuthRequest.SignUp request) {
         // 1. 이메일 중복 확인 (탈퇴하지 않은 사용자 기준)
@@ -105,6 +113,7 @@ public class AuthService {
     }
 
 
+    // 로그인 - POST /api/auth/login
     @Transactional
     public AuthResponse.Login login(AuthRequest.Login request) {
         // 1. 이메일로 사용자 조회 (탈퇴 제외)
@@ -146,6 +155,7 @@ public class AuthService {
                 .build();
     }
 
+    // 로그아웃 - POST /api/auth/logout
     @Transactional
     public void logout(AuthRequest.Logout request) {
         String hash = hashToken(request.refreshToken());
@@ -160,6 +170,7 @@ public class AuthService {
         token.revoke();
     }
 
+    // 토큰 갱신 - POST /api/auth/refresh
     @Transactional
     public AuthResponse.Refresh refresh(AuthRequest.Refresh request) {
         // 1. JWT 서명·만료 검증 — 반환값 불필요, 예외 발생 여부만 확인 (EXPIRED_TOKEN / INVALID_TOKEN)
@@ -199,6 +210,45 @@ public class AuthService {
                 .refreshToken(newRefreshToken)
                 .role(user.getRole().name())
                 .build();
+    }
+
+    // 비밀번호 재설정 요청 - POST /api/auth/password-reset/request
+    @Transactional
+    public void requestPasswordReset(String email) {
+        userRepository.findByEmailAndDeletedAtIsNull(email).ifPresent(user -> {
+            // 기존 미사용 토큰 전체 무효화
+            passwordResetTokenRepository.markAllUsedByUserId(user.getId());
+
+            String rawToken = generateSecureToken();
+            String hash = hashToken(rawToken);
+            passwordResetTokenRepository.save(
+                    PasswordResetToken.create(user, hash, LocalDateTime.now().plusMinutes(15))
+            );
+            mailService.sendPasswordResetEmail(user.getEmail(), rawToken);
+        });
+    }
+
+    // 비밀번호 재설정 확인 - POST /api/auth/password-reset/confirm
+    @Transactional
+    public void confirmPasswordReset(String rawToken, String newPassword) {
+        String hash = hashToken(rawToken);
+        PasswordResetToken token = passwordResetTokenRepository
+                .findByTokenHashAndUsedFalseAndExpiresAtAfter(hash, LocalDateTime.now())
+                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_RESET_TOKEN));
+
+        User user = token.getUser();
+        user.updatePassword(passwordEncoder.encode(newPassword));
+        token.markUsed();
+
+        // 비밀번호 변경 후 전체 세션 강제 로그아웃
+        refreshTokenRepository.deleteByUser_Id(user.getId());
+    }
+
+
+    private String generateSecureToken() {
+        byte[] bytes = new byte[32];
+        SECURE_RANDOM.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
     private String hashToken(String token) {
