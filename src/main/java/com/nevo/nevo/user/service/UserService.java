@@ -48,7 +48,16 @@ public class UserService {
     }
 
     /**
-     * 4. 사용자 계정 탈퇴 (Soft delete)
+     * 4. FCM 토큰 삭제 (로그아웃 시 클라이언트가 별도 호출)
+     */
+    @Transactional
+    public void deleteDeviceToken(Long userId) {
+        User user = findActiveUser(userId);
+        user.clearFcmToken();
+    }
+
+    /**
+     * 5. 사용자 계정 탈퇴 (Soft delete)
      */
     @Transactional
     public void deleteAccount(Long userId) {
