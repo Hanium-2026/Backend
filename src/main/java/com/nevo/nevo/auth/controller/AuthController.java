@@ -30,4 +30,13 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(SuccessResponse.of(AuthSuccessCode.SIGN_UP_SUCCESS, response));
     }
+
+    @PostMapping("/login")
+    @Operation(summary = "로그인", description = "이메일/비밀번호로 로그인합니다.")
+    public ResponseEntity<SuccessResponse<AuthResponse.Login>> login(
+            @RequestBody @Valid AuthRequest.Login request)
+    {
+        AuthResponse.Login response = authService.login(request);
+        return ResponseEntity.ok(SuccessResponse.of(AuthSuccessCode.LOGIN_SUCCESS, response));
+    }
 }
