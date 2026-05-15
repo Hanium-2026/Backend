@@ -16,7 +16,10 @@ public class AuthRequest {
             String email,
 
             @NotBlank(message = "비밀번호는 필수입니다.")
-            @Size(min = 8, message = "비밀번호는 8자 이상이어야 합니다.")
+            @Pattern(
+                    regexp = "^(?=.*[A-Za-z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{8,}$",
+                    message = "비밀번호는 8자 이상, 영문·숫자·특수문자를 포함해야 합니다."
+            )
             String password,
 
             @NotBlank(message = "이름은 필수입니다.")
@@ -58,6 +61,24 @@ public class AuthRequest {
     public record Refresh(
             @NotBlank(message = "리프레시 토큰은 필수입니다.")
             String refreshToken
+    ) {}
+
+    public record PasswordResetRequest(
+            @NotBlank(message = "이메일은 필수입니다.")
+            @Email(message = "이메일 형식이 올바르지 않습니다.")
+            String email
+    ) {}
+
+    public record PasswordResetConfirm(
+            @NotBlank(message = "토큰은 필수입니다.")
+            String token,
+
+            @NotBlank(message = "비밀번호는 필수입니다.")
+            @Pattern(
+                    regexp = "^(?=.*[A-Za-z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{8,}$",
+                    message = "비밀번호는 8자 이상, 영문·숫자·특수문자를 포함해야 합니다."
+            )
+            String newPassword
     ) {}
 
     public record ConsentItem(

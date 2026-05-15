@@ -1,0 +1,1 @@
+CREATE INDEX idx_password_reset_tokens_token_hash ON password_reset_tokens(token_hash);

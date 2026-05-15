@@ -57,6 +57,11 @@ public class User extends BaseEntity {
 
     public void clearFcmToken() {
         this.fcmToken = null;
+
+    // 비밀번호 재설정 메서드
+    public void updatePassword(String encodedPassword) {
+        this.password = encodedPassword;
+
     }
 
     @Builder

@@ -1,6 +1,7 @@
 package com.nevo.nevo.global.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nevo.nevo.auth.jwt.JwtAuthenticationEntryPoint;
 import com.nevo.nevo.auth.jwt.JwtAuthenticationFilter;
 import com.nevo.nevo.auth.jwt.JwtUtil;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,7 @@ public class SecurityConfig {
 
     private final JwtUtil jwtUtil;
     private final ObjectMapper objectMapper;
+    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
     // 인증 없이 접근 가능한 경로
     private static final String[] PUBLIC_URLS = {
@@ -46,6 +48,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_URLS).permitAll()
                         .anyRequest().authenticated()
+                )
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(jwtAuthenticationEntryPoint)
                 )
                 .addFilterBefore(
                         new JwtAuthenticationFilter(jwtUtil, objectMapper, PUBLIC_URLS),
