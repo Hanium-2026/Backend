@@ -67,10 +67,11 @@ username: nevo / password: nevo_backend
 | consents | V6 | 인증/보행 담당 |
 | refresh_tokens token_hash 인덱스 | V7 | 인증/보행 담당 |
 | refresh_tokens (user_id, device_id) 복합 인덱스 | V8 | 인증/보행 담당 |
-| gait_sessions | V11 예정 | 인증/보행 담당 |
-| session_scores | V12 예정 | 인증/보행 담당 |
-| gait_reports | V13 예정 | 인증/보행 담당 |
-| daily_scores | V14 예정 | 인증/보행 담당 |
+| password_reset_tokens token_hash 인덱스 | V11 | 인증/보행 담당 |
+| gait_sessions | V12 예정 | 인증/보행 담당 |
+| session_scores | V13 예정 | 인증/보행 담당 |
+| gait_reports | V14 예정 | 인증/보행 담당 |
+| daily_scores | V15 예정 | 인증/보행 담당 |
 
 ---
 
@@ -84,8 +85,8 @@ username: nevo / password: nevo_backend
 | POST | /api/auth/login | 로그인 | ✅ |
 | POST | /api/auth/logout | 로그아웃 | ✅ |
 | POST | /api/auth/refresh | 토큰 갱신 | ✅ |
-| POST | /api/auth/password-reset/request | 비밀번호 재설정 요청 | 미구현 |
-| POST | /api/auth/password-reset/confirm | 비밀번호 재설정 확인 | 미구현 |
+| POST | /api/auth/password-reset/request | 비밀번호 재설정 요청 | ✅ |
+| POST | /api/auth/password-reset/confirm | 비밀번호 재설정 확인 | ✅ |
 
 ### 보행 — JWT 필요 / 담당: 인증/보행
 
@@ -119,13 +120,13 @@ username: nevo / password: nevo_backend
 com.nevo.nevo/
 ├── auth/
 │   ├── controller/       ← AuthController
-│   ├── service/          ← AuthService
+│   ├── service/          ← AuthService, MailService, PasswordResetTokenCleanupService
 │   ├── dto/
-│   │   ├── request/      ← AuthRequest (SignUp, Login, ... record)
+│   │   ├── request/      ← AuthRequest (SignUp, Login, PasswordResetRequest, PasswordResetConfirm ... record)
 │   │   └── response/     ← AuthResponse (SignUp, Login, ... record)
-│   ├── entity/           ← RefreshToken
-│   ├── repository/       ← RefreshTokenRepository
-│   ├── jwt/              ← JwtUtil, JwtAuthenticationFilter, JwtAuthentication
+│   ├── entity/           ← RefreshToken, PasswordResetToken
+│   ├── repository/       ← RefreshTokenRepository, PasswordResetTokenRepository
+│   ├── jwt/              ← JwtUtil, JwtAuthenticationFilter, JwtAuthentication, JwtAuthenticationEntryPoint
 │   └── exception/code/   ← AuthErrorCode, AuthSuccessCode
 │
 ├── session/
@@ -176,7 +177,7 @@ com.nevo.nevo/
 │   └── exception/code/   ← UserErrorCode, UserSuccessCode
 │
 └── global/
-    ├── config/           ← SecurityConfig, SwaggerConfig
+    ├── config/           ← SecurityConfig, SwaggerConfig, AsyncConfig (@EnableAsync, @EnableScheduling), JacksonConfig
     ├── entity/           ← BaseEntity (createdAt, updatedAt)
     └── exception/
         ├── CustomException, ErrorResponse, SuccessResponse, GlobalExceptionHandler
@@ -245,10 +246,13 @@ public class AuthResponse {
 ## 핵심 설계 결정
 
 - **JWT payload**: `{ userId, wardId, role }` — GUARDIAN은 `wardId: null`
+- **JWT 만료**: 액세스 토큰 30분 / 리프레시 토큰 30일
 - **보행 API**: JWT에서 wardId 직접 추출 (추가 DB 조회 없음)
 - **RefreshToken**: SHA-256 해시값만 DB 저장, 원본은 클라이언트 반환 / `device_id`로 멀티 디바이스 지원 / `revoked`(로그아웃), `used`(재사용 방지) 플래그 / `@ManyToOne User user` 연관관계
 - **logout**: refreshToken을 body로 받는 public 엔드포인트 — 액세스 토큰 불필요 (만료 상태에서도 로그아웃 가능)
-- **public URL 관리**: `SecurityConfig.PUBLIC_URLS`가 단일 소스 → `JwtAuthenticationFilter` 생성자에 전달 / `AntPathMatcher`로 패턴 매칭
+- **public URL 관리**: `SecurityConfig.PUBLIC_URLS`가 단일 소스 → `JwtAuthenticationFilter` 생성자에 전달 / `AntPathMatcher`로 패턴 매칭 / 미인증 접근 시 `JwtAuthenticationEntryPoint`가 커스텀 에러 형식 반환
+- **비밀번호 정책**: 8자 이상, 영문·숫자·특수문자 조합 필수 (`@Pattern` — 회원가입·재설정 동일 정책)
+- **비밀번호 재설정**: SHA-256 해시만 DB 저장 / 만료 15분 / 새 요청 시 기존 미사용 토큰 전체 무효화 / 재설정 완료 후 전체 RefreshToken 삭제(강제 로그아웃) / 이메일 발송 `@Async` 비동기 처리 / 만료 토큰 매일 새벽 3시 자동 삭제
 - **ConsentType**: `TERMS`, `PRIVACY`, `SMS`, `MEDICAL`
 - **세션 데이터 보관**:
   - 위험 세션 `session_scores.expires_at = NULL` (영구 보관)
