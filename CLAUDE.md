@@ -16,8 +16,8 @@
 
 | 역할 | 담당 도메인 |
 |------|------------|
-| 인증/보행 담당 | users·wards INSERT, auth, session, report, Flyway V2~V8 |
-| 사용자/알림 담당 | users·wards·notification_settings·User_Device_Tokens 테이블 SQL, FCM 알림, ward_guardian_link, locations, alerts |
+| 인증/보행 담당 | auth, session, report, Flyway V4 이후 |
+| 사용자/알림 담당 | users·wards·notification_settings·User_Device_Tokens 테이블 SQL, FCM 알림, ward_guardian_link, locations, alerts, Flyway V1~V3 |
 
 > **주의**: 인증/보행 담당은 users·wards SQL 작성 금지 (JPA 엔티티만 작성).
 > 사용자/알림 담당은 FCM 알림을 `@EventListener(StrokeDangerEvent.class)`로 수신해 처리.
@@ -51,22 +51,23 @@ username: nevo / password: nevo_backend
 
 ## 전체 테이블 목록
 
-| 테이블 | 담당 |
-|--------|------|
-| users | 사용자/알림 담당 (SQL 작성) |
-| wards | 사용자/알림 담당 (SQL 작성) |
-| notification_settings | 사용자/알림 담당 |
-| User_Device_Tokens | 사용자/알림 담당 |
-| ward_guardian_link | 사용자/알림 담당 |
-| locations | 사용자/알림 담당 |
-| alerts | 사용자/알림 담당 |
-| refresh_tokens | 인증/보행 담당 (V2) |
-| password_reset_tokens | 인증/보행 담당 (V3) |
-| consents | 인증/보행 담당 (V4) |
-| gait_sessions | 인증/보행 담당 (V5) |
-| session_scores | 인증/보행 담당 (V6) |
-| gait_reports | 인증/보행 담당 (V7) |
-| daily_scores | 인증/보행 담당 (V8) |
+| 테이블 | Flyway | 담당 |
+|--------|--------|------|
+| users | V1 | 사용자/알림 담당 (SQL 작성) |
+| wards | V2 | 사용자/알림 담당 (SQL 작성) |
+| wards user_id FK 추가 | V3 | 사용자/알림 담당 |
+| notification_settings | — | 사용자/알림 담당 |
+| User_Device_Tokens | — | 사용자/알림 담당 |
+| ward_guardian_link | — | 사용자/알림 담당 |
+| locations | — | 사용자/알림 담당 |
+| alerts | — | 사용자/알림 담당 |
+| refresh_tokens | V4 | 인증/보행 담당 |
+| password_reset_tokens | V5 | 인증/보행 담당 |
+| consents | V6 | 인증/보행 담당 |
+| gait_sessions | V8 예정 | 인증/보행 담당 |
+| session_scores | V9 예정 | 인증/보행 담당 |
+| gait_reports | V10 예정 | 인증/보행 담당 |
+| daily_scores | V11 예정 | 인증/보행 담당 |
 
 ---
 
@@ -74,31 +75,31 @@ username: nevo / password: nevo_backend
 
 ### 인증 — public (JWT 불필요) / 담당: 인증/보행
 
-| 메서드 | 경로 | 설명 |
-|--------|------|------|
-| POST | /api/auth/sign-up | 회원가입 |
-| POST | /api/auth/login | 로그인 |
-| POST | /api/auth/logout | 로그아웃 |
-| POST | /api/auth/refresh | 토큰 갱신 |
-| POST | /api/auth/password-reset/request | 비밀번호 재설정 요청 |
-| POST | /api/auth/password-reset/confirm | 비밀번호 재설정 확인 |
+| 메서드 | 경로 | 설명 | 구현 |
+|--------|------|------|------|
+| POST | /api/auth/sign-up | 회원가입 | ✅ |
+| POST | /api/auth/login | 로그인 | ✅ |
+| POST | /api/auth/logout | 로그아웃 | 미구현 |
+| POST | /api/auth/refresh | 토큰 갱신 | 미구현 |
+| POST | /api/auth/password-reset/request | 비밀번호 재설정 요청 | 미구현 |
+| POST | /api/auth/password-reset/confirm | 비밀번호 재설정 확인 | 미구현 |
 
 ### 보행 — JWT 필요 / 담당: 인증/보행
 
-| 메서드 | 경로 | 설명 |
-|--------|------|------|
-| POST | /api/gait/sessions/start | 보행 측정 시작 |
-| POST | /api/gait/sessions/{sessionId}/data | 보행 데이터 전송 |
-| POST | /api/gait/sessions/{sessionId}/stop | 보행 측정 종료 |
-| GET  | /api/gait/sessions/active | 진행 중인 세션 조회 |
-| POST | /api/gait/sessions/{sessionId}/analysis | 분석 결과 업로드 |
+| 메서드 | 경로 | 설명 | 구현 |
+|--------|------|------|------|
+| POST | /api/gait/sessions/start | 보행 측정 시작 | 미구현 |
+| POST | /api/gait/sessions/{sessionId}/data | 보행 데이터 전송 | 미구현 |
+| POST | /api/gait/sessions/{sessionId}/stop | 보행 측정 종료 | 미구현 |
+| GET  | /api/gait/sessions/active | 진행 중인 세션 조회 | 미구현 |
+| POST | /api/gait/sessions/{sessionId}/analysis | 분석 결과 업로드 | 미구현 |
 
 ### 리포트 — JWT 필요 / 담당: 인증/보행
 
-| 메서드 | 경로 | 설명 |
-|--------|------|------|
-| GET | /api/gait/reports/{sessionId} | 단건 세션 리포트 조회 |
-| GET | /api/gait/reports/weekly | 주간 보행 통계 조회 |
+| 메서드 | 경로 | 설명 | 구현 |
+|--------|------|------|------|
+| GET | /api/gait/reports/{sessionId} | 단건 세션 리포트 조회 | 미구현 |
+| GET | /api/gait/reports/weekly | 주간 보행 통계 조회 | 미구현 |
 
 ---
 
@@ -108,17 +109,21 @@ username: nevo / password: nevo_backend
 com.nevo.nevo/
 ├── auth/
 │   ├── controller/       ← AuthController
-│   ├── service/          ← AuthService, PasswordResetService
-│   ├── dto/              ← AuthRequest, AuthResponse (내부 record로 구분)
-│   ├── entity/           ← RefreshToken, PasswordResetToken
-│   ├── repository/       ← RefreshTokenRepository, PasswordResetTokenRepository
+│   ├── service/          ← AuthService
+│   ├── dto/
+│   │   ├── request/      ← AuthRequest (SignUp, Login, ... record)
+│   │   └── response/     ← AuthResponse (SignUp, Login, ... record)
+│   ├── entity/           ← RefreshToken
+│   ├── repository/       ← RefreshTokenRepository
 │   ├── jwt/              ← JwtUtil, JwtAuthenticationFilter, JwtAuthentication
 │   └── exception/code/   ← AuthErrorCode, AuthSuccessCode
 │
 ├── session/
 │   ├── controller/       ← SessionController
 │   ├── service/          ← SessionService
-│   ├── dto/              ← SessionRequest, SessionResponse
+│   ├── dto/
+│   │   ├── request/      ← SessionRequest
+│   │   └── response/     ← SessionResponse
 │   ├── entity/           ← GaitSession, SessionScore
 │   ├── repository/       ← GaitSessionRepository, SessionScoreRepository
 │   ├── event/            ← StrokeDangerEvent
@@ -127,20 +132,31 @@ com.nevo.nevo/
 ├── report/
 │   ├── controller/       ← ReportController
 │   ├── service/          ← ReportService
-│   ├── dto/              ← ReportResponse
+│   ├── dto/
+│   │   └── response/     ← ReportResponse
 │   ├── entity/           ← GaitReport, DailyScore
 │   ├── repository/       ← GaitReportRepository, DailyScoreRepository
 │   └── exception/code/   ← ReportErrorCode, ReportSuccessCode
 │
+├── ward/                 ← 사용자/알림 담당 소유
+│   ├── controller/       ← WardController
+│   ├── service/          ← WardService
+│   ├── dto/              ← WardRequest, WardResponse
+│   ├── entity/           ← Ward, Gender
+│   ├── repository/       ← WardRepository
+│   └── exception/code/   ← WardErrorCode, WardSuccessCode
+│
 ├── user/
-│   ├── entity/           ← User(변경예정), Ward, Consent, ConsentType, Role
-│   ├── repository/       ← UserRepository, WardRepository, ConsentRepository
+│   ├── controller/       ← UserController (사용자/알림 담당)
+│   ├── service/          ← UserService (사용자/알림 담당)
+│   ├── dto/              ← UserRequest, UserResponse (사용자/알림 담당)
+│   ├── entity/           ← User, Role, Consent, ConsentType
+│   ├── repository/       ← UserRepository, ConsentRepository
 │   └── exception/code/   ← UserErrorCode, UserSuccessCode
 │
 └── global/
     ├── config/           ← SecurityConfig, SwaggerConfig
     ├── entity/           ← BaseEntity (createdAt, updatedAt)
-    ├── util/             ← SecurityUtil
     └── exception/
         ├── CustomException, ErrorResponse, SuccessResponse, GlobalExceptionHandler
         └── code/         ← ErrorCode(인터페이스), SuccessCode(인터페이스), GlobalErrorCode
@@ -151,22 +167,27 @@ com.nevo.nevo/
 ## 코딩 컨벤션
 
 ### DTO 구조
-- **Request**: 하나의 클래스에 기능별 `record`로 묶어서 관리
-  ```java
-  // AuthRequest.java
-  public class AuthRequest {
-      public record SignUp(...) {}
-      public record Login(...) {}
-  }
-  ```
-- **Response**: 동일 방식
-  ```java
-  // AuthResponse.java
-  public class AuthResponse {
-      public record SignUp(String accessToken, String refreshToken, String role) {}
-      public record Login(String accessToken, String refreshToken, String role) {}
-  }
-  ```
+- **Request/Response**를 `dto/request/`, `dto/response/` 패키지로 분리
+- 각 클래스 안에 기능별 `record`로 구분, `@Builder` 적용
+
+```java
+// auth/dto/request/AuthRequest.java
+public class AuthRequest {
+    public record SignUp(...) {}
+    public record Login(...) {}
+}
+
+// auth/dto/response/AuthResponse.java
+public class AuthResponse {
+    @Builder
+    public record SignUp(String accessToken, String refreshToken, String role) {}
+}
+```
+
+### 엔티티 규칙
+- 클래스 레벨에 `@Builder @AllArgsConstructor @NoArgsConstructor` 함께 사용
+- `BaseEntity` 상속 시 `created_at`, `updated_at` 자동 관리 (JPA Auditing)
+- 기본값이 있는 필드는 `@Builder.Default` 사용
 
 ### 에러/성공 코드 형식
 - **형식**: 도메인 + HTTP 상태코드 (같은 상태코드 중복 시 숫자 추가)
@@ -180,6 +201,7 @@ com.nevo.nevo/
 | 보행 | `session/exception/code/SessionErrorCode` | `session/exception/code/SessionSuccessCode` |
 | 리포트 | `report/exception/code/ReportErrorCode` | `report/exception/code/ReportSuccessCode` |
 | 사용자 | `user/exception/code/UserErrorCode` | `user/exception/code/UserSuccessCode` |
+| 피보호자 | `ward/exception/code/WardErrorCode` | `ward/exception/code/WardSuccessCode` |
 
 ### 응답 형식
 ```json
@@ -196,6 +218,8 @@ com.nevo.nevo/
 
 - **JWT payload**: `{ userId, wardId, role }` — GUARDIAN은 `wardId: null`
 - **보행 API**: JWT에서 wardId 직접 추출 (추가 DB 조회 없음)
+- **RefreshToken**: SHA-256 해시값만 DB 저장, 원본은 클라이언트 반환 / `device_id`로 멀티 디바이스 지원 / `revoked`(로그아웃), `used`(재사용 방지) 플래그
+- **ConsentType**: `TERMS`, `PRIVACY`, `SMS`, `MEDICAL`
 - **세션 데이터 보관**:
   - 위험 세션 `session_scores.expires_at = NULL` (영구 보관)
   - 정상 세션 `session_scores.expires_at = NOW() + 7일`

@@ -96,6 +96,47 @@ public class AuthService {
     }
 
 
+    @Transactional
+    public AuthResponse.Login login(AuthRequest.Login request) {
+        // 1. 이메일로 사용자 조회 (탈퇴 제외)
+        User user = userRepository.findByEmailAndDeletedAtIsNull(request.email())
+                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_CREDENTIALS));
+
+        // 2. 비밀번호 검증 (이메일/비밀번호 어느 쪽이 틀렸는지 노출 금지)
+        if (!passwordEncoder.matches(request.password(), user.getPassword())) {
+            throw new CustomException(AuthErrorCode.INVALID_CREDENTIALS);
+        }
+
+        // 3. WARD면 wardId 조회, GUARDIAN이면 null
+        Long wardId = null;
+        if (user.getRole() == Role.WARD) {
+            wardId = wardRepository.findByUser_Id(user.getId())
+                    .map(Ward::getId)
+                    .orElse(null);
+        }
+
+        // 4. JWT 발급
+        String accessToken = jwtUtil.generateAccessToken(user.getId(), wardId, user.getRole().name());
+        String refreshToken = jwtUtil.generateRefreshToken(user.getId());
+
+        // 5. 동일 device 기존 토큰 전체 revoke (비정상 상황으로 복수 존재 시에도 안전)
+        refreshTokenRepository.findAllByUserIdAndDeviceIdAndRevokedFalse(user.getId(), request.deviceId())
+                .forEach(RefreshToken::revoke);
+
+        // 6. 새 RefreshToken 해시 저장
+        refreshTokenRepository.save(RefreshToken.builder()
+                .userId(user.getId())
+                .tokenHash(hashToken(refreshToken))
+                .deviceId(request.deviceId())
+                .build());
+
+        return AuthResponse.Login.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .role(user.getRole().name())
+                .build();
+    }
+
     private String hashToken(String token) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");

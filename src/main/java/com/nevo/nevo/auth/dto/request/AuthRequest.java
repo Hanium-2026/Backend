@@ -38,6 +38,18 @@ public class AuthRequest {
             List<ConsentItem> consents
     ) {}
 
+    public record Login(
+            @NotBlank(message = "이메일은 필수입니다.")
+            @Email(message = "이메일 형식이 올바르지 않습니다.")
+            String email,
+
+            @NotBlank(message = "비밀번호는 필수입니다.")
+            String password,
+
+            @NotBlank(message = "디바이스 ID는 필수입니다.")
+            String deviceId
+    ) {}
+
     public record ConsentItem(
             @NotNull(message = "약관 종류는 필수입니다.")
             ConsentType consentType,
