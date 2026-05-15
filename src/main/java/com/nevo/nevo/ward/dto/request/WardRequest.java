@@ -1,4 +1,4 @@
-package com.nevo.nevo.ward.dto;
+package com.nevo.nevo.ward.dto.request;
 
 import com.nevo.nevo.ward.entity.Gender;
 import jakarta.validation.constraints.NotNull;

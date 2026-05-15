@@ -1,4 +1,4 @@
-package com.nevo.nevo.ward.dto;
+package com.nevo.nevo.ward.dto.response;
 
 import com.nevo.nevo.ward.entity.Gender;
 import com.nevo.nevo.ward.entity.Ward;
