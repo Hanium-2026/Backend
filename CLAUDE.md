@@ -104,6 +104,16 @@ username: nevo / password: nevo_backend
 | GET | /api/gait/reports/{sessionId} | 단건 세션 리포트 조회 | 미구현 |
 | GET | /api/gait/reports/weekly | 주간 보행 통계 조회 | 미구현 |
 
+### 사용자 — JWT 필요 / 담당: 사용자/알림
+
+| 메서드 | 경로 | 설명 | 구현 |
+|--------|------|------|------|
+| GET    | /api/users/me | 사용자 정보 조회 | ✅ |
+| PUT    | /api/users/me | 사용자 정보 수정 | ✅ |
+| DELETE | /api/users/me | 계정 탈퇴 | ✅ |
+| POST   | /api/users/device-token | FCM 토큰 등록/갱신 | ✅ |
+| DELETE | /api/users/device-token | FCM 토큰 삭제 (로그아웃 시 호출) | ✅ |
+
 ### 위치 — JWT 필요 / 담당: 사용자/알림
 
 | 메서드 | 경로 | 설명 | 구현 |
