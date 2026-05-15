@@ -64,10 +64,12 @@ username: nevo / password: nevo_backend
 | refresh_tokens | V4 | 인증/보행 담당 |
 | password_reset_tokens | V5 | 인증/보행 담당 |
 | consents | V6 | 인증/보행 담당 |
-| gait_sessions | V8 예정 | 인증/보행 담당 |
-| session_scores | V9 예정 | 인증/보행 담당 |
-| gait_reports | V10 예정 | 인증/보행 담당 |
-| daily_scores | V11 예정 | 인증/보행 담당 |
+| refresh_tokens token_hash 인덱스 | V7 | 인증/보행 담당 |
+| refresh_tokens (user_id, device_id) 복합 인덱스 | V8 | 인증/보행 담당 |
+| gait_sessions | V9 예정 | 인증/보행 담당 |
+| session_scores | V10 예정 | 인증/보행 담당 |
+| gait_reports | V11 예정 | 인증/보행 담당 |
+| daily_scores | V12 예정 | 인증/보행 담당 |
 
 ---
 
@@ -79,8 +81,8 @@ username: nevo / password: nevo_backend
 |--------|------|------|------|
 | POST | /api/auth/sign-up | 회원가입 | ✅ |
 | POST | /api/auth/login | 로그인 | ✅ |
-| POST | /api/auth/logout | 로그아웃 | 미구현 |
-| POST | /api/auth/refresh | 토큰 갱신 | 미구현 |
+| POST | /api/auth/logout | 로그아웃 | ✅ |
+| POST | /api/auth/refresh | 토큰 갱신 | ✅ |
 | POST | /api/auth/password-reset/request | 비밀번호 재설정 요청 | 미구현 |
 | POST | /api/auth/password-reset/confirm | 비밀번호 재설정 확인 | 미구현 |
 
@@ -188,6 +190,8 @@ public class AuthResponse {
 - 클래스 레벨에 `@Builder @AllArgsConstructor @NoArgsConstructor` 함께 사용
 - `BaseEntity` 상속 시 `created_at`, `updated_at` 자동 관리 (JPA Auditing)
 - 기본값이 있는 필드는 `@Builder.Default` 사용
+- 엔티티 간 참조는 `Long id` 대신 JPA 연관관계 애노테이션 사용 (`@ManyToOne`, `@OneToOne`, `@OneToMany`)
+- 페치 전략 기본값: `FetchType.LAZY`
 
 ### 에러/성공 코드 형식
 - **형식**: 도메인 + HTTP 상태코드 (같은 상태코드 중복 시 숫자 추가)
@@ -202,6 +206,10 @@ public class AuthResponse {
 | 리포트 | `report/exception/code/ReportErrorCode` | `report/exception/code/ReportSuccessCode` |
 | 사용자 | `user/exception/code/UserErrorCode` | `user/exception/code/UserSuccessCode` |
 | 피보호자 | `ward/exception/code/WardErrorCode` | `ward/exception/code/WardSuccessCode` |
+
+### Service @Transactional 패턴
+- 클래스 레벨: `@Transactional(readOnly = true)` 기본 적용
+- 쓰기 메서드(INSERT/UPDATE/DELETE): `@Transactional` 개별 오버라이드
 
 ### 응답 형식
 ```json
@@ -218,7 +226,9 @@ public class AuthResponse {
 
 - **JWT payload**: `{ userId, wardId, role }` — GUARDIAN은 `wardId: null`
 - **보행 API**: JWT에서 wardId 직접 추출 (추가 DB 조회 없음)
-- **RefreshToken**: SHA-256 해시값만 DB 저장, 원본은 클라이언트 반환 / `device_id`로 멀티 디바이스 지원 / `revoked`(로그아웃), `used`(재사용 방지) 플래그
+- **RefreshToken**: SHA-256 해시값만 DB 저장, 원본은 클라이언트 반환 / `device_id`로 멀티 디바이스 지원 / `revoked`(로그아웃), `used`(재사용 방지) 플래그 / `@ManyToOne User user` 연관관계
+- **logout**: refreshToken을 body로 받는 public 엔드포인트 — 액세스 토큰 불필요 (만료 상태에서도 로그아웃 가능)
+- **public URL 관리**: `SecurityConfig.PUBLIC_URLS`가 단일 소스 → `JwtAuthenticationFilter` 생성자에 전달 / `AntPathMatcher`로 패턴 매칭
 - **ConsentType**: `TERMS`, `PRIVACY`, `SMS`, `MEDICAL`
 - **세션 데이터 보관**:
   - 위험 세션 `session_scores.expires_at = NULL` (영구 보관)

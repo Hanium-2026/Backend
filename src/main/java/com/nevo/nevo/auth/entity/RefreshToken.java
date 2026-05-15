@@ -1,5 +1,6 @@
 package com.nevo.nevo.auth.entity;
 
+import com.nevo.nevo.user.entity.User;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -32,8 +33,9 @@ public class RefreshToken {
     @Column(nullable = false)
     private Boolean used = false;
 
-    @Column(name = "user_id", nullable = false)
-    private Long userId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
     public void revoke() {
         this.revoked = true;

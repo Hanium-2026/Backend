@@ -8,22 +8,37 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 
-@RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final AntPathMatcher antPathMatcher = new AntPathMatcher();
 
     private final JwtUtil jwtUtil;
     private final ObjectMapper objectMapper;
+    private final List<String> publicUrls;
+
+    public JwtAuthenticationFilter(JwtUtil jwtUtil, ObjectMapper objectMapper, String[] publicUrls) {
+        this.jwtUtil = jwtUtil;
+        this.objectMapper = objectMapper;
+        this.publicUrls = Arrays.asList(publicUrls);
+    }
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        return publicUrls.stream().anyMatch(pattern -> antPathMatcher.match(pattern, path));
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,

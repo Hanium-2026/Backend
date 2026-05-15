@@ -27,6 +27,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class AuthService {
 
     private final UserRepository userRepository;
@@ -43,7 +44,15 @@ public class AuthService {
             throw new CustomException(AuthErrorCode.EMAIL_DUPLICATED);
         }
 
-        // 2. User 저장
+        // 2. WARD 필수 필드 사전 검증
+        if (request.role() == Role.WARD) {
+            if (request.height() == null || request.weight() == null
+                    || request.birthDate() == null || request.gender() == null) {
+                throw new CustomException(AuthErrorCode.WARD_FIELDS_REQUIRED);
+            }
+        }
+
+        // 3. User 저장
         User user = User.builder()
                 .email(request.email())
                 .password(passwordEncoder.encode(request.password()))
@@ -52,7 +61,7 @@ public class AuthService {
                 .build();
         userRepository.save(user);
 
-        // 3. WARD이면 Ward 저장
+        // 4. WARD이면 Ward 저장
         Long wardId = null; // 역할이 GUARDIAN이면 wardId는 없어야 함.
         if (request.role() == Role.WARD) {
             Ward ward = Ward.builder()
@@ -66,7 +75,7 @@ public class AuthService {
             wardId = ward.getId();
         }
 
-        // 4. Consent 목록 저장
+        // 5. Consent 목록 저장
         List<Consent> consents = request.consents().stream()
                 .map(item -> Consent.builder()
                         .user(user)
@@ -77,13 +86,13 @@ public class AuthService {
                 .toList();
         consentRepository.saveAll(consents);
 
-        // 5. JWT 발급
+        // 6. JWT 발급
         String accessToken = jwtUtil.generateAccessToken(user.getId(), wardId, request.role().name());
         String refreshToken = jwtUtil.generateRefreshToken(user.getId());
 
-        // 6. RefreshToken 해시 저장
+        // 7. RefreshToken 해시 저장
         refreshTokenRepository.save(RefreshToken.builder()
-                .userId(user.getId())
+                .user(user)
                 .tokenHash(hashToken(refreshToken))
                 .deviceId(request.deviceId())
                 .build());
@@ -120,12 +129,12 @@ public class AuthService {
         String refreshToken = jwtUtil.generateRefreshToken(user.getId());
 
         // 5. 동일 device 기존 토큰 전체 revoke (비정상 상황으로 복수 존재 시에도 안전)
-        refreshTokenRepository.findAllByUserIdAndDeviceIdAndRevokedFalse(user.getId(), request.deviceId())
+        refreshTokenRepository.findAllByUser_IdAndDeviceIdAndRevokedFalse(user.getId(), request.deviceId())
                 .forEach(RefreshToken::revoke);
 
         // 6. 새 RefreshToken 해시 저장
         refreshTokenRepository.save(RefreshToken.builder()
-                .userId(user.getId())
+                .user(user)
                 .tokenHash(hashToken(refreshToken))
                 .deviceId(request.deviceId())
                 .build());
@@ -133,6 +142,61 @@ public class AuthService {
         return AuthResponse.Login.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
+                .role(user.getRole().name())
+                .build();
+    }
+
+    @Transactional
+    public void logout(AuthRequest.Logout request) {
+        String hash = hashToken(request.refreshToken());
+
+        RefreshToken token = refreshTokenRepository.findByTokenHash(hash)
+                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
+
+        if (token.getRevoked() || token.getUsed()) {
+            throw new CustomException(AuthErrorCode.REVOKED_TOKEN);
+        }
+
+        token.revoke();
+    }
+
+    @Transactional
+    public AuthResponse.Refresh refresh(AuthRequest.Refresh request) {
+        // 1. JWT 서명·만료 검증 — 반환값 불필요, 예외 발생 여부만 확인 (EXPIRED_TOKEN / INVALID_TOKEN)
+        jwtUtil.parseClaims(request.refreshToken());
+
+        // 2. DB에서 유효한 토큰 조회 (revoked=false, used=false)
+        String hash = hashToken(request.refreshToken());
+        RefreshToken oldToken = refreshTokenRepository.findByTokenHashAndRevokedFalseAndUsedFalse(hash)
+                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
+
+        // 3. 연관관계로 User 조회
+        User user = oldToken.getUser();
+
+        // 4. WARD면 wardId 조회, GUARDIAN이면 null
+        Long wardId = null;
+        if (user.getRole() == Role.WARD) {
+            wardId = wardRepository.findByUser_Id(user.getId())
+                    .map(Ward::getId)
+                    .orElse(null);
+        }
+
+        // 5. 기존 토큰 used 처리 (재사용 공격 방지)
+        oldToken.markUsed();
+
+        // 6. 새 토큰 발급 및 저장
+        String newAccessToken = jwtUtil.generateAccessToken(user.getId(), wardId, user.getRole().name());
+        String newRefreshToken = jwtUtil.generateRefreshToken(user.getId());
+
+        refreshTokenRepository.save(RefreshToken.builder()
+                .user(user)
+                .tokenHash(hashToken(newRefreshToken))
+                .deviceId(oldToken.getDeviceId())
+                .build());
+
+        return AuthResponse.Refresh.builder()
+                .accessToken(newAccessToken)
+                .refreshToken(newRefreshToken)
                 .role(user.getRole().name())
                 .build();
     }

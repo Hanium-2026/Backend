@@ -39,4 +39,22 @@ public class AuthController {
         AuthResponse.Login response = authService.login(request);
         return ResponseEntity.ok(SuccessResponse.of(AuthSuccessCode.LOGIN_SUCCESS, response));
     }
+
+    @PostMapping("/logout")
+    @Operation(summary = "로그아웃", description = "리프레시 토큰을 무효화합니다.")
+    public ResponseEntity<SuccessResponse<Void>> logout(
+            @RequestBody @Valid AuthRequest.Logout request)
+    {
+        authService.logout(request);
+        return ResponseEntity.ok(SuccessResponse.of(AuthSuccessCode.LOGOUT_SUCCESS, null));
+    }
+
+    @PostMapping("/refresh")
+    @Operation(summary = "토큰 갱신", description = "리프레시 토큰으로 새 액세스/리프레시 토큰을 발급합니다.")
+    public ResponseEntity<SuccessResponse<AuthResponse.Refresh>> refresh(
+            @RequestBody @Valid AuthRequest.Refresh request)
+    {
+        AuthResponse.Refresh response = authService.refresh(request);
+        return ResponseEntity.ok(SuccessResponse.of(AuthSuccessCode.TOKEN_REFRESH_SUCCESS, response));
+    }
 }

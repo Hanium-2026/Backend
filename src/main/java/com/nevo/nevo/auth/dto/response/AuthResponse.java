@@ -17,4 +17,11 @@ public class AuthResponse {
             String refreshToken,
             String role
     ) {}
+
+    @Builder
+    public record Refresh(
+            String accessToken,
+            String refreshToken,
+            String role
+    ) {}
 }

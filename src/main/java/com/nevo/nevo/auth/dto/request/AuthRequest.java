@@ -50,6 +50,16 @@ public class AuthRequest {
             String deviceId
     ) {}
 
+    public record Logout(
+            @NotBlank(message = "리프레시 토큰은 필수입니다.")
+            String refreshToken
+    ) {}
+
+    public record Refresh(
+            @NotBlank(message = "리프레시 토큰은 필수입니다.")
+            String refreshToken
+    ) {}
+
     public record ConsentItem(
             @NotNull(message = "약관 종류는 필수입니다.")
             ConsentType consentType,

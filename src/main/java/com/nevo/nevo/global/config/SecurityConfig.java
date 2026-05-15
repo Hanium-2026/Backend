@@ -27,6 +27,7 @@ public class SecurityConfig {
     private static final String[] PUBLIC_URLS = {
             "/api/auth/sign-up",
             "/api/auth/login",
+            "/api/auth/logout",
             "/api/auth/refresh",
             "/api/auth/password-reset/request",
             "/api/auth/password-reset/confirm",
@@ -47,7 +48,7 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(
-                        new JwtAuthenticationFilter(jwtUtil, objectMapper),
+                        new JwtAuthenticationFilter(jwtUtil, objectMapper, PUBLIC_URLS),
                         UsernamePasswordAuthenticationFilter.class
                 );
 
