@@ -68,10 +68,10 @@ username: nevo / password: nevo_backend
 | refresh_tokens token_hash 인덱스 | V7 | 인증/보행 담당 |
 | refresh_tokens (user_id, device_id) 복합 인덱스 | V8 | 인증/보행 담당 |
 | password_reset_tokens token_hash 인덱스 | V11 | 인증/보행 담당 |
-| gait_sessions | V12 예정 | 인증/보행 담당 |
-| session_scores | V13 예정 | 인증/보행 담당 |
-| gait_reports | V14 예정 | 인증/보행 담당 |
-| daily_scores | V15 예정 | 인증/보행 담당 |
+| gait_sessions | V12 | 인증/보행 담당 |
+| session_scores | V13 | 인증/보행 담당 |
+| gait_reports | V14 | 인증/보행 담당 |
+| daily_scores | V15 | 인증/보행 담당 |
 
 ---
 
@@ -92,11 +92,11 @@ username: nevo / password: nevo_backend
 
 | 메서드 | 경로 | 설명 | 구현 |
 |--------|------|------|------|
-| POST | /api/gait/sessions/start | 보행 측정 시작 | 미구현 |
-| POST | /api/gait/sessions/{sessionId}/data | 보행 데이터 전송 | 미구현 |
-| POST | /api/gait/sessions/{sessionId}/stop | 보행 측정 종료 | 미구현 |
-| GET  | /api/gait/sessions/active | 진행 중인 세션 조회 | 미구현 |
-| POST | /api/gait/sessions/{sessionId}/analysis | 분석 결과 업로드 | 미구현 |
+| POST | /api/gait/sessions/start | 보행 측정 시작 | ✅ |
+| POST | /api/gait/sessions/{sessionId}/data | 보행 데이터 전송 | ✅ |
+| POST | /api/gait/sessions/{sessionId}/stop | 보행 측정 종료 | ✅ |
+| GET  | /api/gait/sessions/active | 진행 중인 세션 조회 | ✅ |
+| POST | /api/gait/sessions/{sessionId}/analysis | 분석 결과 업로드 | ✅ |
 
 ### 리포트 — JWT 필요 / 담당: 인증/보행
 
@@ -264,11 +264,17 @@ public class AuthResponse {
 - **비밀번호 정책**: 8자 이상, 영문·숫자·특수문자 조합 필수 (`@Pattern` — 회원가입·재설정 동일 정책)
 - **비밀번호 재설정**: SHA-256 해시만 DB 저장 / 만료 15분 / 새 요청 시 기존 미사용 토큰 전체 무효화 / 재설정 완료 후 전체 RefreshToken 삭제(강제 로그아웃) / 이메일 발송 `@Async` 비동기 처리 / 만료 토큰 매일 새벽 3시 자동 삭제
 - **ConsentType**: `TERMS`, `PRIVACY`, `SMS`, `MEDICAL`
+- **SessionStatus**: `ACTIVE` / `COMPLETED` 두 가지만 존재
+- **하루 1세션 설계**: 사용자가 하루 한 번 수동 `/start`, 매일 00시 스케줄러가 남은 ACTIVE 세션 자동 COMPLETED 처리
+- **오프라인 우선**: 앱이 SQLite에 분당 데이터 보관 → 네트워크 복구 시 `/data` 배치 업로드 (ON CONFLICT DO NOTHING으로 중복 무시)
+- **앱 재시작 복원**: 배터리 방전 등 비의도적 종료 시 `/active`로 기존 sessionId 복원해 같은 세션 이어서 진행
 - **세션 데이터 보관**:
   - 위험 세션 `session_scores.expires_at = NULL` (영구 보관)
   - 정상 세션 `session_scores.expires_at = NOW() + 7일`
-  - 매일 새벽 3시 만료 데이터 자동 삭제 (`@Scheduled`)
+  - 매일 00시 만료 데이터 자동 삭제 (`SessionCleanupService @Scheduled`)
+  - 고아 scores 안전망: 분석 미업로드 세션의 scores를 7일 후 만료 처리
 - **세션 종료 시**: 서버가 `daily_scores` UPSERT 자동 처리
+- **report_summary**: 앱/AI 팀이 TFLite 분석 후 생성하는 텍스트 요약, nullable
 - **위험 감지 이벤트**: 인증/보행 담당이 `StrokeDangerEvent` 발행 → 사용자/알림 담당이 `@EventListener`로 수신 후 FCM 처리
 - **실시간 위치**: DB UPSERT(ward당 최신 1건) + SSE 메모리 push 병행
   - `SseEmitterManager`가 wardId별 `Set<SseEmitter>` 관리 → 보호자 여러 명 동시 구독 가능
