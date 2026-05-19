@@ -33,6 +33,11 @@
 | `JWT_SECRET` | JWT 서명 키 (32자 이상) | `my-secret-key-for-local-dev-only` |
 | `MAIL_USERNAME` | 발송자 Gmail 계정 | `noreply@gmail.com` |
 | `MAIL_PASSWORD` | Gmail 앱 비밀번호 16자리 | Google 계정 → 보안 → 앱 비밀번호 |
+| `FIREBASE_CREDENTIALS_PATH` | Firebase 서비스 계정 JSON 경로 (classpath 기준) | `firebase-service-account.json` |
+
+> Firebase 서비스 계정 JSON: Firebase Console → 프로젝트 설정 → 서비스 계정 → 새 비공개 키 생성.
+> `src/main/resources/firebase-service-account.json` 에 저장 후 `.gitignore` 에 추가.
+> 파일이 없으면 FCM 기능만 비활성화되고 앱은 정상 기동됨.
 
 > DB 설정(`DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD`)은 기본값이 있어 로컬 PostgreSQL 기본 설정 그대로 사용 가능.
 
@@ -58,10 +63,11 @@ username: nevo / password: nevo_backend
 | wards user_id FK 추가 | V3 | 사용자/알림 담당 |
 | users.fcm_token | V1 포함 | 사용자/알림 담당 (단일 기기 FCM 토큰, 별도 테이블 없음) |
 | notification_settings | — | 사용자/알림 담당 |
-| ward_guardian_link | — | 사용자/알림 담당 |
+| ward_guardian_link | V16 | 사용자/알림 담당 |
+| ward_link_codes | V17 | 사용자/알림 담당 |
 | locations | V9 | 사용자/알림 담당 |
 | locations ward_id UNIQUE 제약 | V10 | 사용자/알림 담당 |
-| alerts | — | 사용자/알림 담당 |
+| alerts | V18 | 사용자/알림 담당 |
 | refresh_tokens | V4 | 인증/보행 담당 |
 | password_reset_tokens | V5 | 인증/보행 담당 |
 | consents | V6 | 인증/보행 담당 |
@@ -122,6 +128,17 @@ username: nevo / password: nevo_backend
 | POST | /api/locations | 노약자 현재 위치 업로드 (WARD 전용) | ✅ |
 | GET  | /api/locations/stream/{wardId} | 실시간 위치 SSE 구독 (GUARDIAN 전용) | ✅ |
 
+### 보호자-노약자 연동 — JWT 필요 / 담당: 사용자/알림
+
+| 메서드 | 경로 | 설명 | 역할 | 구현 |
+|--------|------|------|------|------|
+| POST | /api/ward-link/code | 연동 코드 생성 + 보호자에게 FCM 발송 | WARD | ✅ |
+| POST | /api/ward-link | 연동 코드 입력해서 연결 | GUARDIAN | ✅ |
+| DELETE | /api/ward-link/{wardId} | 연동 해제 | GUARDIAN | ✅ |
+| GET | /api/ward-link/wards | 연결된 노약자 목록 조회 | GUARDIAN | ✅ |
+| GET | /api/ward-link/guardians | 연결된 보호자 목록 조회 | WARD | ✅ |
+| GET | /api/ward-link/{wardId}/alerts | 특정 노약자 알림 내역 조회 | GUARDIAN | ✅ |
+
 ---
 
 ## 패키지 구조
@@ -171,12 +188,21 @@ com.nevo.nevo/
 │   └── exception/code/   ← LocationErrorCode, LocationSuccessCode
 │
 ├── ward/                 ← 사용자/알림 담당 소유
-│   ├── controller/       ← WardController
-│   ├── service/          ← WardService
-│   ├── dto/              ← WardRequest, WardResponse
-│   ├── entity/           ← Ward, Gender
-│   ├── repository/       ← WardRepository
+│   ├── controller/       ← WardController, WardLinkController
+│   ├── service/          ← WardService, WardLinkService
+│   ├── dto/
+│   │   ├── request/      ← WardRequest, WardLinkRequest
+│   │   └── response/     ← WardResponse, WardLinkResponse
+│   ├── entity/           ← Ward, Gender, WardGuardianLink, WardLinkCode
+│   ├── repository/       ← WardRepository, WardGuardianLinkRepository, WardLinkCodeRepository
 │   └── exception/code/   ← WardErrorCode, WardSuccessCode
+│
+├── notification/         ← 사용자/알림 담당 소유
+│   ├── service/          ← FcmService, AlertService, NotificationEventListener
+│   ├── dto/
+│   │   └── response/     ← AlertResponse
+│   ├── entity/           ← Alert, AlertType
+│   └── repository/       ← AlertRepository
 │
 ├── user/
 │   ├── controller/       ← UserController (사용자/알림 담당)
@@ -187,7 +213,7 @@ com.nevo.nevo/
 │   └── exception/code/   ← UserErrorCode, UserSuccessCode
 │
 └── global/
-    ├── config/           ← SecurityConfig, SwaggerConfig, AsyncConfig (@EnableAsync, @EnableScheduling), JacksonConfig
+    ├── config/           ← SecurityConfig, SwaggerConfig, AsyncConfig (@EnableAsync, @EnableScheduling), JacksonConfig, FcmConfig
     ├── entity/           ← BaseEntity (createdAt, updatedAt)
     └── exception/
         ├── CustomException, ErrorResponse, SuccessResponse, GlobalExceptionHandler
@@ -275,7 +301,11 @@ public class AuthResponse {
   - 고아 scores 안전망: 분석 미업로드 세션의 scores를 7일 후 만료 처리
 - **세션 종료 시**: 서버가 `daily_scores` UPSERT 자동 처리
 - **report_summary**: 앱/AI 팀이 TFLite 분석 후 생성하는 텍스트 요약, nullable
-- **위험 감지 이벤트**: 인증/보행 담당이 `StrokeDangerEvent` 발행 → 사용자/알림 담당이 `@EventListener`로 수신 후 FCM 처리
+- **위험 감지 이벤트**: 인증/보행 담당이 `StrokeDangerEvent` 발행 → `NotificationEventListener`가 `@TransactionalEventListener(AFTER_COMMIT)` + `@Async` + `@Transactional`로 수신 → alerts 테이블 저장 + 연결된 보호자 전원에게 FCM 발송
+- **보호자-노약자 연동**: 노약자가 보호자 이메일 입력 → 6자리 코드 생성(10분 만료) + 보호자에게 FCM 알림 발송 → 보호자가 코드 입력해 연결 / `ward_guardian_link` 다대다 / `ward_link_codes` 임시 코드 저장
+- **연동 코드 문자셋**: `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` (혼동 문자 I·O·0·1 제외)
+- **FCM 인프라**: `FcmConfig`가 앱 시작 시 Firebase 초기화 (서비스 계정 JSON 없으면 FCM만 비활성화, 앱은 정상 기동) / `FcmService.send()` `@Async`로 비동기 처리
+- **알림 내역**: `alerts` 테이블에 위험 감지 알림 영구 저장 → 보호자가 `GET /api/ward-link/{wardId}/alerts`로 조회 (연결된 노약자만 조회 가능)
 - **실시간 위치**: DB UPSERT(ward당 최신 1건) + SSE 메모리 push 병행
   - `SseEmitterManager`가 wardId별 `Set<SseEmitter>` 관리 → 보호자 여러 명 동시 구독 가능
   - SSE 타임아웃 1시간, 재연결은 클라이언트 책임
