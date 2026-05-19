@@ -42,6 +42,12 @@ public class DailyScore {
     @Column(name = "session_count", nullable = false)
     private Integer sessionCount = 1;
 
+    @Column(name = "variability_score")
+    private Float variabilityScore;
+
+    @Column(name = "asymmetry_score")
+    private Float asymmetryScore;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

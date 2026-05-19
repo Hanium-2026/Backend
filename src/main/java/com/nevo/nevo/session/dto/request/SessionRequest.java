@@ -22,7 +22,9 @@ public class SessionRequest {
             @NotNull Float maxScore,
             // 0 초과 시 StrokeDangerEvent 발행 → FCM 알림
             @NotNull @Min(0) Integer dangerCount,
-            String reportSummary
+            String reportSummary,
+            @NotNull Float variabilityScore,
+            @NotNull Float asymmetryScore
     ) {}
 
     // 분당 보행 데이터 배치 업로드 요청

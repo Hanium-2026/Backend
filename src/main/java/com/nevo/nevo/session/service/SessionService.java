@@ -172,6 +172,8 @@ public class SessionService {
 
         Ward ward = session.getWard();
 
+        LocalDateTime now = LocalDateTime.now();
+
         gaitReportRepository.save(
                 GaitReport.builder()
                         .ward(ward)
@@ -182,7 +184,9 @@ public class SessionService {
                         .maxScore(request.maxScore())
                         .dangerCount(request.dangerCount())
                         .reportSummary(request.reportSummary())
-                        .createdAt(LocalDateTime.now())
+                        .variabilityScore(request.variabilityScore())
+                        .asymmetryScore(request.asymmetryScore())
+                        .createdAt(now)
                         .build()
         );
 
@@ -192,10 +196,11 @@ public class SessionService {
             eventPublisher.publishEvent(new StrokeDangerEvent(wardId, sessionId));
         } else {
             // 정상 세션: session_scores 7일 후 자동 삭제 예약
-            sessionScoreRepository.updateExpiresAtBySessionId(sessionId, LocalDateTime.now().plusDays(7));
+            sessionScoreRepository.updateExpiresAtBySessionId(sessionId, now.plusDays(7));
         }
 
-        upsertDailyScore(wardId, request.avgScore(), request.minScore(), request.maxScore());
+        upsertDailyScore(wardId, request.avgScore(), request.minScore(), request.maxScore(),
+                request.variabilityScore(), request.asymmetryScore());
 
         return ResponseEntity.ok(SuccessResponse.of(SessionSuccessCode.ANALYSIS_UPLOADED));
     }
@@ -212,20 +217,27 @@ public class SessionService {
     // 일별 보행 통계 원자적 UPSERT
     // 당일 첫 세션이면 INSERT, 이후 세션이면 누적 평균·최솟값·최댓값 갱신
     // ON CONFLICT DO UPDATE로 SELECT 후 UPDATE 패턴의 레이스 컨디션 방지
-    private void upsertDailyScore(Long wardId, Float avgScore, Float minScore, Float maxScore) {
+    private void upsertDailyScore(Long wardId, Float avgScore, Float minScore, Float maxScore,
+                                   Float variabilityScore, Float asymmetryScore) {
         LocalDateTime now = LocalDateTime.now();
         jdbcTemplate.update("""
-                INSERT INTO daily_scores (ward_id, date, avg_score, min_score, max_score, session_count, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+                INSERT INTO daily_scores (ward_id, date, avg_score, min_score, max_score,
+                                          variability_score, asymmetry_score, session_count, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
                 ON CONFLICT (ward_id, date) DO UPDATE SET
-                  avg_score     = (daily_scores.avg_score * daily_scores.session_count + EXCLUDED.avg_score) / (daily_scores.session_count + 1),
-                  min_score     = LEAST(daily_scores.min_score, EXCLUDED.min_score),
-                  max_score     = GREATEST(daily_scores.max_score, EXCLUDED.max_score),
-                  session_count = daily_scores.session_count + 1,
-                  updated_at    = EXCLUDED.updated_at
+                  avg_score         = (daily_scores.avg_score * daily_scores.session_count + EXCLUDED.avg_score)
+                                      / (daily_scores.session_count + 1),
+                  min_score         = LEAST(daily_scores.min_score, EXCLUDED.min_score),
+                  max_score         = GREATEST(daily_scores.max_score, EXCLUDED.max_score),
+                  variability_score = (COALESCE(daily_scores.variability_score, 0) * daily_scores.session_count + EXCLUDED.variability_score)
+                                      / (daily_scores.session_count + 1),
+                  asymmetry_score   = (COALESCE(daily_scores.asymmetry_score, 0) * daily_scores.session_count + EXCLUDED.asymmetry_score)
+                                      / (daily_scores.session_count + 1),
+                  session_count     = daily_scores.session_count + 1,
+                  updated_at        = EXCLUDED.updated_at
                 """,
                 wardId, Date.valueOf(now.toLocalDate()), avgScore, minScore, maxScore,
-                Timestamp.valueOf(now), Timestamp.valueOf(now)
+                variabilityScore, asymmetryScore, Timestamp.valueOf(now), Timestamp.valueOf(now)
         );
     }
 }

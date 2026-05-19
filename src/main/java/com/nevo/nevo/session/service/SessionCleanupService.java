@@ -20,7 +20,7 @@ public class SessionCleanupService {
     private final GaitSessionRepository gaitSessionRepository;
     private final SessionScoreRepository sessionScoreRepository;
 
-    @Scheduled(cron = "0 0 0 * * *")
+    @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Seoul")
     @Transactional
     public void cleanUp() {
         int deleted = sessionScoreRepository.deleteExpiredScores(LocalDateTime.now());

@@ -9,7 +9,8 @@ import org.springframework.http.HttpStatus;
 @RequiredArgsConstructor
 public enum ReportErrorCode implements ErrorCode {
 
-    REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "REPORT404", "리포트를 찾을 수 없습니다.");
+    REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "REPORT404", "리포트를 찾을 수 없습니다."),
+    REPORT_FORBIDDEN(HttpStatus.FORBIDDEN, "REPORT403", "리포트에 접근할 권한이 없습니다.");
 
     private final HttpStatus status;
     private final String code;
