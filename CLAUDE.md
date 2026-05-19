@@ -94,22 +94,31 @@ username: nevo / password: nevo_backend
 | POST | /api/auth/password-reset/request | 비밀번호 재설정 요청 | ✅ |
 | POST | /api/auth/password-reset/confirm | 비밀번호 재설정 확인 | ✅ |
 
-### 보행 — JWT 필요 / 담당: 인증/보행
+### 보행 — JWT 필요 / 담당: 인증/보행 (모두 WARD 전용, GUARDIAN 호출 시 403)
 
 | 메서드 | 경로 | 설명 | 구현 |
 |--------|------|------|------|
 | POST | /api/gait/sessions/start | 보행 측정 시작 | ✅ |
-| POST | /api/gait/sessions/{sessionId}/data | 보행 데이터 전송 | ✅ |
+| POST | /api/gait/sessions/{sessionId}/data | 분당 보행 데이터 업로드 | ✅ |
 | POST | /api/gait/sessions/{sessionId}/stop | 보행 측정 종료 | ✅ |
 | GET  | /api/gait/sessions/active | 진행 중인 세션 조회 | ✅ |
-| POST | /api/gait/sessions/{sessionId}/analysis | 분석 결과 업로드 | ✅ |
+| POST | /api/gait/sessions/{sessionId}/analysis | 세션 분석 결과 업로드 | ✅ |
 
 ### 리포트 — JWT 필요 / 담당: 인증/보행
 
-| 메서드 | 경로 | 설명 | 구현 |
-|--------|------|------|------|
-| GET | /api/gait/reports/{sessionId} | 단건 세션 리포트 조회 | 미구현 |
-| GET | /api/gait/reports/weekly | 주간 보행 통계 조회 | 미구현 |
+| 메서드 | 경로 | 설명 | 역할 | 구현 | FE 화면 |
+|--------|------|------|------|------|---------|
+| GET | /api/gait/reports/{sessionId} | 세션 상세 리포트 조회 | WARD·GUARDIAN | ✅ | 01-04 결과 |
+| GET | /api/gait/reports/daily | 최근 7일 일별 통계 + 세션 목록 | WARD | ✅ | 01-02 홈(오늘 점수), 01-05 기록 |
+| GET | /api/gait/reports/ward/{wardId}/daily | 기간별(7·30·90일) 일별 통계 | GUARDIAN | ✅ | c2 노약자 상세 추이 |
+| GET | /api/gait/reports/dashboard | 연동된 모든 노약자 최신 상태 요약 | GUARDIAN | ✅ | c1 대시보드 |
+
+#### 미구현 (DB 필드 부재, AI팀 확정 대기)
+| 화면 | 미구현 내용 | 이유 |
+|------|------------|------|
+| 01-02 홈, 01-04 결과 | 보폭·케이던스·보행속도 지표 | gait_reports에 해당 컬럼 없음 |
+| 01-04 결과, c4 그래프 | 레이더 차트 | 보폭·케이던스·보행속도·한발지지 컬럼 없음 |
+| c4 히트맵 | 날짜별 riskLevel 집계 | daily_scores에 riskLevel 컬럼 없음 |
 
 ### 사용자 — JWT 필요 / 담당: 사용자/알림
 
@@ -158,7 +167,7 @@ com.nevo.nevo/
 │
 ├── session/
 │   ├── controller/       ← SessionController
-│   ├── service/          ← SessionService
+│   ├── service/          ← SessionService, SessionCleanupService (@Scheduled, 매일 00:00 KST)
 │   ├── dto/
 │   │   ├── request/      ← SessionRequest
 │   │   └── response/     ← SessionResponse
@@ -299,7 +308,8 @@ public class AuthResponse {
   - 정상 세션 `session_scores.expires_at = NOW() + 7일`
   - 매일 00시 만료 데이터 자동 삭제 (`SessionCleanupService @Scheduled`)
   - 고아 scores 안전망: 분석 미업로드 세션의 scores를 7일 후 만료 처리
-- **세션 종료 시**: 서버가 `daily_scores` UPSERT 자동 처리
+- **분석 업로드 시 (`/analysis`)**: `gait_reports` 저장 + `daily_scores` UPSERT (가중 평균 누적) 자동 처리 — `/stop`이 아닌 `/analysis` 호출 시점에 처리됨
+- **asymmetryScore 변환**: DB에는 `asymmetry_score` (0~1 raw 임상값)로 저장, API 응답에는 `symmetryScore = (1 - asymmetryScore) * 100` (0~100%)로 변환해 노출 — `gait_reports`, `daily_scores` 모두 동일
 - **report_summary**: 앱/AI 팀이 TFLite 분석 후 생성하는 텍스트 요약, nullable
 - **위험 감지 이벤트**: 인증/보행 담당이 `StrokeDangerEvent` 발행 → `NotificationEventListener`가 `@TransactionalEventListener(AFTER_COMMIT)` + `@Async` + `@Transactional`로 수신 → alerts 테이블 저장 + 연결된 보호자 전원에게 FCM 발송
 - **보호자-노약자 연동**: 노약자가 보호자 이메일 입력 → 6자리 코드 생성(10분 만료) + 보호자에게 FCM 알림 발송 → 보호자가 코드 입력해 연결 / `ward_guardian_link` 다대다 / `ward_link_codes` 임시 코드 저장
