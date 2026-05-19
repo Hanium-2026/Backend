@@ -37,6 +37,9 @@ dependencies {
     // Email
     implementation 'org.springframework.boot:spring-boot-starter-mail'
 
+    // Firebase Admin SDK (FCM)
+    implementation 'com.google.firebase:firebase-admin:9.4.3'
+
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
     runtimeOnly 'org.postgresql:postgresql'

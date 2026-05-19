@@ -38,6 +38,10 @@ jwt:
   access-expiration: 1800000         # 액세스 토큰 만료: 30분 (ms)
   refresh-expiration: 2592000000     # 리프레시 토큰 만료: 30일 (ms)
 
+# Firebase FCM 설정
+firebase:
+  credentials-path: ${FIREBASE_CREDENTIALS_PATH:firebase-service-account.json}
+
 # Swagger UI 경로 설정
 springdoc:
   swagger-ui:
