@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -29,7 +30,7 @@ public class NotificationEventListener {
 
     // @Transactional: 새 스레드에서 트랜잭션을 열어 LAZY 로딩과 alert 저장이 가능하게 함
     @Async
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleStrokeDanger(StrokeDangerEvent event) {
         Ward ward = wardRepository.findById(event.wardId()).orElse(null);
