@@ -1,0 +1,2 @@
+ALTER TABLE daily_scores
+    ADD COLUMN danger_count INTEGER NOT NULL DEFAULT 0;

@@ -33,6 +33,7 @@ public class ReportResponse {
             Float minScore,
             Float maxScore,
             Integer sessionCount,
+            Integer dangerCount,
             Float variabilityScore,
             Float symmetryScore       // asymmetryScore 변환값: (1 - asymmetryScore) * 100
     ) {}
@@ -65,7 +66,8 @@ public class ReportResponse {
             Float maxScore,
             Float variabilityScore,
             Float symmetryScore,      // asymmetryScore 변환값: (1 - asymmetryScore) * 100
-            Integer sessionCount
+            Integer sessionCount,
+            Integer dangerCount
     ) {}
 
     // GET /api/gait/reports/ward/{wardId}/daily
@@ -77,13 +79,14 @@ public class ReportResponse {
     ) {}
 
     // GET /api/gait/reports/dashboard
-    // 노약자 1명의 요약 카드. latestScore/riskLevel은 gait_reports 최신 1건, 없으면 null
+    // 노약자 1명의 요약 카드. latestScore/riskLevel/lastSessionAt은 gait_reports 최신 1건, 없으면 null
     @Builder
     public record WardSummary(
             Long wardId,
             String name,
             Float latestScore,
             String riskLevel,
+            LocalDateTime lastSessionAt,  // 최근 측정 시각 (gait_reports.created_at)
             List<Float> trend   // 최근 7일 avgScore 배열 (항상 7개, 없는 날 null)
     ) {}
 

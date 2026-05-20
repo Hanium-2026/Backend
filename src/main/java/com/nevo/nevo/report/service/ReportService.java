@@ -157,6 +157,7 @@ public class ReportService {
                         .variabilityScore(d.getVariabilityScore())
                         .symmetryScore(toSymmetryScore(d.getAsymmetryScore()))
                         .sessionCount(d.getSessionCount())
+                        .dangerCount(d.getDangerCount())
                         .build())
                 .orElse(null);
 
@@ -227,6 +228,7 @@ public class ReportService {
                             .name(ward != null ? ward.getUser().getName() : null)
                             .latestScore(report != null ? report.getAvgScore() : null)
                             .riskLevel(report != null ? report.getRiskLevel().name() : null)
+                            .lastSessionAt(report != null ? report.getCreatedAt() : null)
                             .trend(trend)
                             .build();
                 })
@@ -246,6 +248,7 @@ public class ReportService {
                 .minScore(d.getMinScore())
                 .maxScore(d.getMaxScore())
                 .sessionCount(d.getSessionCount())
+                .dangerCount(d.getDangerCount())
                 .variabilityScore(d.getVariabilityScore())
                 .symmetryScore(toSymmetryScore(d.getAsymmetryScore()))
                 .build();

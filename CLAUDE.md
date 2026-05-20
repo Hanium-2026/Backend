@@ -78,6 +78,9 @@ username: nevo / password: nevo_backend
 | session_scores | V13 | 인증/보행 담당 |
 | gait_reports | V14 | 인증/보행 담당 |
 | daily_scores | V15 | 인증/보행 담당 |
+| daily_scores variability_score·asymmetry_score 컬럼 추가 | V19 | 인증/보행 담당 |
+| daily_scores danger_count 컬럼 추가 | V20 | 인증/보행 담당 |
+| gait_sessions(ward_id, status) 인덱스, session_scores(expires_at) partial 인덱스 | V21 | 인증/보행 담당 |
 
 ---
 
@@ -167,7 +170,7 @@ com.nevo.nevo/
 │
 ├── session/
 │   ├── controller/       ← SessionController
-│   ├── service/          ← SessionService, SessionCleanupService (@Scheduled, 매일 00:00 KST)
+│   ├── service/          ← SessionService, SessionCleanupService (@Scheduled, 매일 00:00 KST), SessionCleanupStepService (@Transactional 단계별 실행)
 │   ├── dto/
 │   │   ├── request/      ← SessionRequest
 │   │   └── response/     ← SessionResponse
@@ -308,8 +311,11 @@ public class AuthResponse {
   - 정상 세션 `session_scores.expires_at = NOW() + 7일`
   - 매일 00시 만료 데이터 자동 삭제 (`SessionCleanupService @Scheduled`)
   - 고아 scores 안전망: 분석 미업로드 세션의 scores를 7일 후 만료 처리
+- **자정 스케줄러 트랜잭션 분리**: `SessionCleanupService`(@Scheduled)는 "언제 실행"만 담당, 실제 DB 작업은 `SessionCleanupStepService`(@Transactional) 3개 메서드로 분리 — 각 단계가 독립 트랜잭션으로 동작해 한 단계 실패 시 다른 단계는 정상 커밋
 - **분석 업로드 시 (`/analysis`)**: `gait_reports` 저장 + `daily_scores` UPSERT (가중 평균 누적) 자동 처리 — `/stop`이 아닌 `/analysis` 호출 시점에 처리됨
+- **daily_scores UPSERT 설계**: JdbcTemplate 직접 실행, ON CONFLICT DO UPDATE로 레이스 컨디션 없는 원자적 처리 / `variability_score`·`asymmetry_score` NULL 입력 시 CASE WHEN으로 기존 값 보호 / `danger_count` 세션별 누적 합산
 - **asymmetryScore 변환**: DB에는 `asymmetry_score` (0~1 raw 임상값)로 저장, API 응답에는 `symmetryScore = (1 - asymmetryScore) * 100` (0~100%)로 변환해 노출 — `gait_reports`, `daily_scores` 모두 동일
+- **variabilityScore·asymmetryScore nullable**: AI팀 필드 확정 전까지 nullable 허용. AI팀이 항상 값을 보내는 것으로 확정되면: `SessionRequest.AnalysisUpload`에 `@NotNull` 추가 + Flyway로 `gait_reports`·`daily_scores` 컬럼 NOT NULL 제약 추가 + `upsertDailyScore()` CASE WHEN 제거하고 단순 가중 평균으로 정리
 - **report_summary**: 앱/AI 팀이 TFLite 분석 후 생성하는 텍스트 요약, nullable
 - **위험 감지 이벤트**: 인증/보행 담당이 `StrokeDangerEvent` 발행 → `NotificationEventListener`가 `@TransactionalEventListener(AFTER_COMMIT)` + `@Async` + `@Transactional`로 수신 → alerts 테이블 저장 + 연결된 보호자 전원에게 FCM 발송
 - **보호자-노약자 연동**: 노약자가 보호자 이메일 입력 → 6자리 코드 생성(10분 만료) + 보호자에게 FCM 알림 발송 → 보호자가 코드 입력해 연결 / `ward_guardian_link` 다대다 / `ward_link_codes` 임시 코드 저장

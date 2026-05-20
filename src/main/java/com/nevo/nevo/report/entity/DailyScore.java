@@ -42,6 +42,10 @@ public class DailyScore {
     @Column(name = "session_count", nullable = false)
     private Integer sessionCount = 1;
 
+    @Builder.Default
+    @Column(name = "danger_count", nullable = false)
+    private Integer dangerCount = 0;
+
     @Column(name = "variability_score")
     private Float variabilityScore;
 
@@ -54,11 +58,4 @@ public class DailyScore {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    public void addSession(Float newAvgScore, Float newMinScore, Float newMaxScore) {
-        this.avgScore = ((this.avgScore * this.sessionCount) + newAvgScore) / (this.sessionCount + 1);
-        this.minScore = Math.min(this.minScore, newMinScore);
-        this.maxScore = Math.max(this.maxScore, newMaxScore);
-        this.sessionCount++;
-        this.updatedAt = LocalDateTime.now();
-    }
 }
