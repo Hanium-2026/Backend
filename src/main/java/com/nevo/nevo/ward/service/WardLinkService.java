@@ -40,10 +40,10 @@ public class WardLinkService {
     private final FcmService fcmService;
 
     @Transactional
-    public WardLinkResponse.CodeInfo generateCode(Long wardId, String guardianEmail) {
+    public WardLinkResponse.CodeInfo generateCode(Long wardId, String guardianPhone) {
         Ward ward = findWard(wardId);
 
-        User guardian = userRepository.findByEmailAndDeletedAtIsNull(guardianEmail)
+        User guardian = userRepository.findByPhoneAndDeletedAtIsNull(guardianPhone)
                 .orElseThrow(() -> new CustomException(UserErrorCode.USER_NOT_FOUND));
 
         if (guardian.getRole() != Role.GUARDIAN) {

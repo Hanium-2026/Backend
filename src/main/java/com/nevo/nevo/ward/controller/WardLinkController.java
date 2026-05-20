@@ -34,7 +34,7 @@ public class WardLinkController {
     ) {
         if (auth.wardId() == null) throw new CustomException(WardErrorCode.WARD_ACCESS_DENIED);
 
-        WardLinkResponse.CodeInfo data = wardLinkService.generateCode(auth.wardId(), request.guardianEmail());
+        WardLinkResponse.CodeInfo data = wardLinkService.generateCode(auth.wardId(), request.guardianPhone());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(SuccessResponse.of(WardSuccessCode.WARD_LINK_CODE_CREATED, data));
     }
