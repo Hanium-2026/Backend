@@ -21,8 +21,26 @@ public class AuthController {
 
     private final AuthService authService;
 
+    @PostMapping("/sms/send")
+    @Operation(summary = "SMS OTP 발송", description = "회원가입 또는 비밀번호 재설정을 위한 SMS 인증번호를 발송합니다.")
+    public ResponseEntity<SuccessResponse<Void>> sendSms(
+            @RequestBody @Valid AuthRequest.SmsSend request)
+    {
+        authService.sendSms(request.phone(), request.purpose());
+        return ResponseEntity.ok(SuccessResponse.of(AuthSuccessCode.OTP_SENT, null));
+    }
+
+    @PostMapping("/sms/verify")
+    @Operation(summary = "SMS OTP 인증", description = "발송된 인증번호를 검증합니다. 성공 시 10분간 인증 상태가 유지됩니다.")
+    public ResponseEntity<SuccessResponse<Void>> verifySms(
+            @RequestBody @Valid AuthRequest.SmsVerify request)
+    {
+        authService.verifySms(request.phone(), request.code(), request.purpose());
+        return ResponseEntity.ok(SuccessResponse.of(AuthSuccessCode.OTP_VERIFIED, null));
+    }
+
     @PostMapping("/sign-up")
-    @Operation(summary = "회원가입", description = "WARD 또는 GUARDIAN 역할로 회원가입합니다.")
+    @Operation(summary = "회원가입", description = "SMS 인증 완료 후 WARD 또는 GUARDIAN 역할로 회원가입합니다.")
     public ResponseEntity<SuccessResponse<AuthResponse.SignUp>> signUp(
             @RequestBody @Valid AuthRequest.SignUp request)
     {
@@ -32,7 +50,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    @Operation(summary = "로그인", description = "이메일/비밀번호로 로그인합니다.")
+    @Operation(summary = "로그인", description = "전화번호/비밀번호로 로그인합니다.")
     public ResponseEntity<SuccessResponse<AuthResponse.Login>> login(
             @RequestBody @Valid AuthRequest.Login request)
     {
@@ -59,20 +77,20 @@ public class AuthController {
     }
 
     @PostMapping("/password-reset/request")
-    @Operation(summary = "비밀번호 재설정 요청", description = "이메일로 재설정 토큰을 발송합니다.")
+    @Operation(summary = "비밀번호 재설정 요청", description = "전화번호로 비밀번호 재설정 SMS 인증번호를 발송합니다.")
     public ResponseEntity<SuccessResponse<Void>> requestPasswordReset(
             @RequestBody @Valid AuthRequest.PasswordResetRequest request)
     {
-        authService.requestPasswordReset(request.email());
-        return ResponseEntity.ok(SuccessResponse.of(AuthSuccessCode.PASSWORD_RESET_REQUEST_SUCCESS, null));
+        authService.requestPasswordReset(request.phone());
+        return ResponseEntity.ok(SuccessResponse.of(AuthSuccessCode.OTP_SENT, null));
     }
 
     @PostMapping("/password-reset/confirm")
-    @Operation(summary = "비밀번호 재설정 확인", description = "토큰 검증 후 비밀번호를 변경합니다.")
+    @Operation(summary = "비밀번호 재설정 확인", description = "SMS 인증 완료 후 새 비밀번호로 변경합니다.")
     public ResponseEntity<SuccessResponse<Void>> confirmPasswordReset(
             @RequestBody @Valid AuthRequest.PasswordResetConfirm request)
     {
-        authService.confirmPasswordReset(request.token(), request.newPassword());
+        authService.confirmPasswordReset(request);
         return ResponseEntity.ok(SuccessResponse.of(AuthSuccessCode.PASSWORD_RESET_SUCCESS, null));
     }
 }

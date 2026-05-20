@@ -31,9 +31,10 @@
 | 변수 | 설명 | 예시 |
 |------|------|------|
 | `JWT_SECRET` | JWT 서명 키 (32자 이상) | `my-secret-key-for-local-dev-only` |
-| `MAIL_USERNAME` | 발송자 Gmail 계정 | `noreply@gmail.com` |
-| `MAIL_PASSWORD` | Gmail 앱 비밀번호 16자리 | Google 계정 → 보안 → 앱 비밀번호 |
 | `FIREBASE_CREDENTIALS_PATH` | Firebase 서비스 계정 JSON 경로 (classpath 기준) | `firebase-service-account.json` |
+| `REDIS_HOST` | Redis 호스트 (기본값: localhost) | `localhost` |
+| `REDIS_PORT` | Redis 포트 (기본값: 6379) | `6379` |
+| `REDIS_PASSWORD` | Redis 비밀번호 (로컬은 빈 값) | — |
 
 > Firebase 서비스 계정 JSON: Firebase Console → 프로젝트 설정 → 서비스 계정 → 새 비공개 키 생성.
 > `src/main/resources/firebase-service-account.json` 에 저장 후 `.gitignore` 에 추가.
@@ -45,6 +46,20 @@
 ```
 host: localhost / port: 5432 / db: nevo
 username: nevo / password: nevo_backend
+```
+
+### 로컬 Redis 실행
+```bash
+# Homebrew로 설치한 경우
+brew services start redis
+
+# 실행 확인
+redis-cli ping  # PONG 응답 확인
+
+# OTP 키 확인 (개발 중 디버깅)
+redis-cli keys "sms:*"
+redis-cli get "sms:SIGNUP:01012345678"
+redis-cli ttl "sms:SIGNUP:01012345678"
 ```
 
 ### 실행 방법
@@ -81,6 +96,9 @@ username: nevo / password: nevo_backend
 | daily_scores variability_score·asymmetry_score 컬럼 추가 | V19 | 인증/보행 담당 |
 | daily_scores danger_count 컬럼 추가 | V20 | 인증/보행 담당 |
 | gait_sessions(ward_id, status) 인덱스, session_scores(expires_at) partial 인덱스 | V21 | 인증/보행 담당 |
+| users email → phone 컬럼 교체 | V22 | 인증/보행 담당 |
+| password_reset_tokens DROP (SMS OTP로 대체) | V23 | 인증/보행 담당 |
+| refresh_tokens(user_id) 인덱스 추가 | V24 | 인증/보행 담당 |
 
 ---
 
@@ -90,12 +108,14 @@ username: nevo / password: nevo_backend
 
 | 메서드 | 경로 | 설명 | 구현 |
 |--------|------|------|------|
-| POST | /api/auth/sign-up | 회원가입 | ✅ |
+| POST | /api/auth/sms/send | SMS OTP 발송 (SIGNUP / PASSWORD_RESET) | ✅ |
+| POST | /api/auth/sms/verify | SMS OTP 인증 | ✅ |
+| POST | /api/auth/sign-up | 회원가입 (SMS 인증 완료 후) | ✅ |
 | POST | /api/auth/login | 로그인 | ✅ |
 | POST | /api/auth/logout | 로그아웃 | ✅ |
 | POST | /api/auth/refresh | 토큰 갱신 | ✅ |
-| POST | /api/auth/password-reset/request | 비밀번호 재설정 요청 | ✅ |
-| POST | /api/auth/password-reset/confirm | 비밀번호 재설정 확인 | ✅ |
+| POST | /api/auth/password-reset/request | 비밀번호 재설정 OTP 발송 | ✅ |
+| POST | /api/auth/password-reset/confirm | 비밀번호 재설정 확인 (SMS 인증 완료 후) | ✅ |
 
 ### 보행 — JWT 필요 / 담당: 인증/보행 (모두 WARD 전용, GUARDIAN 호출 시 403)
 
@@ -159,12 +179,12 @@ username: nevo / password: nevo_backend
 com.nevo.nevo/
 ├── auth/
 │   ├── controller/       ← AuthController
-│   ├── service/          ← AuthService, MailService, PasswordResetTokenCleanupService
+│   ├── service/          ← AuthService, SmsService (Redis OTP 관리 + SMS 발송)
 │   ├── dto/
 │   │   ├── request/      ← AuthRequest (SignUp, Login, PasswordResetRequest, PasswordResetConfirm ... record)
 │   │   └── response/     ← AuthResponse (SignUp, Login, ... record)
-│   ├── entity/           ← RefreshToken, PasswordResetToken
-│   ├── repository/       ← RefreshTokenRepository, PasswordResetTokenRepository
+│   ├── entity/           ← RefreshToken, SmsVerificationPurpose (enum: SIGNUP / PASSWORD_RESET)
+│   ├── repository/       ← RefreshTokenRepository
 │   ├── jwt/              ← JwtUtil, JwtAuthenticationFilter, JwtAuthentication, JwtAuthenticationEntryPoint
 │   └── exception/code/   ← AuthErrorCode, AuthSuccessCode
 │
@@ -225,7 +245,7 @@ com.nevo.nevo/
 │   └── exception/code/   ← UserErrorCode, UserSuccessCode
 │
 └── global/
-    ├── config/           ← SecurityConfig, SwaggerConfig, AsyncConfig (@EnableAsync, @EnableScheduling), JacksonConfig, FcmConfig
+    ├── config/           ← SecurityConfig, SwaggerConfig, AsyncConfig (@EnableAsync, @EnableScheduling, AsyncUncaughtExceptionHandler), JacksonConfig, FcmConfig, RedisConfig
     ├── entity/           ← BaseEntity (createdAt, updatedAt)
     └── exception/
         ├── CustomException, ErrorResponse, SuccessResponse, GlobalExceptionHandler
@@ -283,11 +303,51 @@ public class AuthResponse {
 ### 응답 형식
 ```json
 // 에러
-{ "code": "AUTH409", "message": "이미 사용 중인 이메일입니다.", "timestamp": "ISO-8601" }
+{ "code": "AUTH409", "message": "이미 사용 중인 전화번호입니다.", "timestamp": "ISO-8601" }
 
 // 성공
 { "code": "AUTH201", "message": "회원가입에 성공했습니다.", "timestamp": "ISO-8601", "data": { ... } }
 ```
+
+---
+
+## 배포 시 수정 필요 사항
+
+### 1. SMS API 연동 (필수)
+현재 OTP와 비밀번호 변경 알림은 서버 로그로만 출력됨. 실제 SMS 발송으로 교체 필요.
+
+**파일**: `auth/service/SmsService.java`
+
+```java
+// [DEV ONLY] 로그 2곳을 네이버 클라우드 SMS API 호출로 교체
+
+// 1. sendOtp() 내부
+log.info("[SMS][DEV ONLY] phone={}, purpose={}, code={}", phone, purpose, code);
+// → 네이버 클라우드 SMS API 호출로 교체
+
+// 2. sendPasswordChangedNotification() 내부
+log.info("[SMS][DEV ONLY] 비밀번호 변경 알림 발송 → phone={}", phone);
+// → 네이버 클라우드 SMS API 호출로 교체
+```
+
+네이버 클라우드 SMS API 연동 시 추가 환경변수:
+| 변수 | 설명 |
+|------|------|
+| `NCP_ACCESS_KEY` | 네이버 클라우드 Access Key |
+| `NCP_SECRET_KEY` | 네이버 클라우드 Secret Key |
+| `NCP_SMS_SERVICE_ID` | SMS 서비스 ID |
+| `NCP_SMS_SENDER` | 발신번호 |
+
+### 2. Redis 운영 서버 설정 (필수)
+로컬은 패스워드 없이 사용하지만, 운영 환경에서는 반드시 설정 필요.
+```
+REDIS_HOST=운영서버주소
+REDIS_PORT=6379
+REDIS_PASSWORD=강력한패스워드
+```
+
+### 3. OTP 로그 레벨 확인 (필수)
+SMS API 연동 완료 후 `[DEV ONLY]` 로그 코드 삭제. 운영 로그에 OTP 코드가 남으면 보안 위협.
 
 ---
 
@@ -300,7 +360,9 @@ public class AuthResponse {
 - **logout**: refreshToken을 body로 받는 public 엔드포인트 — 액세스 토큰 불필요 (만료 상태에서도 로그아웃 가능)
 - **public URL 관리**: `SecurityConfig.PUBLIC_URLS`가 단일 소스 → `JwtAuthenticationFilter` 생성자에 전달 / `AntPathMatcher`로 패턴 매칭 / 미인증 접근 시 `JwtAuthenticationEntryPoint`가 커스텀 에러 형식 반환
 - **비밀번호 정책**: 8자 이상, 영문·숫자·특수문자 조합 필수 (`@Pattern` — 회원가입·재설정 동일 정책)
-- **비밀번호 재설정**: SHA-256 해시만 DB 저장 / 만료 15분 / 새 요청 시 기존 미사용 토큰 전체 무효화 / 재설정 완료 후 전체 RefreshToken 삭제(강제 로그아웃) / 이메일 발송 `@Async` 비동기 처리 / 만료 토큰 매일 새벽 3시 자동 삭제
+- **SMS OTP 인증**: Redis에 저장 (TTL 5분 자동 만료) / Key 형식: `sms:{PURPOSE}:{phone}` / 인증 완료 시 OTP 키 삭제 + verified 키 저장 (TTL 10분) / 재발송 시 기존 OTP 덮어씌워 자동 무효화 / SMS 발송 `@Async` 비동기 처리 / 개발 단계에서는 로그로 대체 (TODO: 네이버 클라우드 SMS API 연동)
+- **회원가입 플로우**: `/sms/send(SIGNUP)` → `/sms/verify(SIGNUP)` → `/sign-up` (verified 확인 후 가입)
+- **비밀번호 재설정**: `/sms/send(PASSWORD_RESET)` → `/sms/verify(PASSWORD_RESET)` → `/password-reset/confirm` / 재설정 완료 후 전체 RefreshToken 삭제(강제 로그아웃)
 - **ConsentType**: `TERMS`, `PRIVACY`, `SMS`, `MEDICAL`
 - **SessionStatus**: `ACTIVE` / `COMPLETED` 두 가지만 존재
 - **하루 1세션 설계**: 사용자가 하루 한 번 수동 `/start`, 매일 00시 스케줄러가 남은 ACTIVE 세션 자동 COMPLETED 처리

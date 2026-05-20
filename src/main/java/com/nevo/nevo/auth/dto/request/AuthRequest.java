@@ -1,5 +1,6 @@
 package com.nevo.nevo.auth.dto.request;
 
+import com.nevo.nevo.auth.entity.SmsVerificationPurpose;
 import com.nevo.nevo.user.entity.ConsentType;
 import com.nevo.nevo.user.entity.Role;
 import com.nevo.nevo.ward.entity.Gender;
@@ -11,9 +12,9 @@ import java.util.List;
 public class AuthRequest {
 
     public record SignUp(
-            @NotBlank(message = "이메일은 필수입니다.")
-            @Email(message = "이메일 형식이 올바르지 않습니다.")
-            String email,
+            @NotBlank(message = "전화번호는 필수입니다.")
+            @Pattern(regexp = "^01[016789]\\d{7,8}$", message = "전화번호 형식이 올바르지 않습니다.")
+            String phone,
 
             @NotBlank(message = "비밀번호는 필수입니다.")
             @Pattern(
@@ -42,9 +43,9 @@ public class AuthRequest {
     ) {}
 
     public record Login(
-            @NotBlank(message = "이메일은 필수입니다.")
-            @Email(message = "이메일 형식이 올바르지 않습니다.")
-            String email,
+            @NotBlank(message = "전화번호는 필수입니다.")
+            @Pattern(regexp = "^01[016789]\\d{7,8}$", message = "전화번호 형식이 올바르지 않습니다.")
+            String phone,
 
             @NotBlank(message = "비밀번호는 필수입니다.")
             String password,
@@ -64,14 +65,15 @@ public class AuthRequest {
     ) {}
 
     public record PasswordResetRequest(
-            @NotBlank(message = "이메일은 필수입니다.")
-            @Email(message = "이메일 형식이 올바르지 않습니다.")
-            String email
+            @NotBlank(message = "전화번호는 필수입니다.")
+            @Pattern(regexp = "^01[016789]\\d{7,8}$", message = "전화번호 형식이 올바르지 않습니다.")
+            String phone
     ) {}
 
     public record PasswordResetConfirm(
-            @NotBlank(message = "토큰은 필수입니다.")
-            String token,
+            @NotBlank(message = "전화번호는 필수입니다.")
+            @Pattern(regexp = "^01[016789]\\d{7,8}$", message = "전화번호 형식이 올바르지 않습니다.")
+            String phone,
 
             @NotBlank(message = "비밀번호는 필수입니다.")
             @Pattern(
@@ -79,6 +81,30 @@ public class AuthRequest {
                     message = "비밀번호는 8자 이상, 영문·숫자·특수문자를 포함해야 합니다."
             )
             String newPassword
+    ) {}
+
+    // SMS OTP 발송 요청
+    public record SmsSend(
+            @NotBlank(message = "전화번호는 필수입니다.")
+            @Pattern(regexp = "^01[016789]\\d{7,8}$", message = "전화번호 형식이 올바르지 않습니다.")
+            String phone,
+
+            @NotNull(message = "목적은 필수입니다.")
+            SmsVerificationPurpose purpose
+    ) {}
+
+    // SMS OTP 인증 요청
+    public record SmsVerify(
+            @NotBlank(message = "전화번호는 필수입니다.")
+            @Pattern(regexp = "^01[016789]\\d{7,8}$", message = "전화번호 형식이 올바르지 않습니다.")
+            String phone,
+
+            @NotBlank(message = "인증번호는 필수입니다.")
+            @Size(min = 6, max = 6, message = "인증번호는 6자리입니다.")
+            String code,
+
+            @NotNull(message = "목적은 필수입니다.")
+            SmsVerificationPurpose purpose
     ) {}
 
     public record ConsentItem(

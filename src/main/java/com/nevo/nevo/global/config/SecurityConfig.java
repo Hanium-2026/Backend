@@ -27,6 +27,8 @@ public class SecurityConfig {
 
     // 인증 없이 접근 가능한 경로
     private static final String[] PUBLIC_URLS = {
+            "/api/auth/sms/send",
+            "/api/auth/sms/verify",
             "/api/auth/sign-up",
             "/api/auth/login",
             "/api/auth/logout",

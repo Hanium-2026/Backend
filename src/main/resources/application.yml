@@ -22,15 +22,12 @@ spring:
     enabled: true
     locations: classpath:db/migration
 
-  # 이메일 발송 설정 (비밀번호 재설정용)
-  mail:
-    host: ${MAIL_HOST:smtp.gmail.com}
-    port: ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME:nevo123@gmail.com} # 필수 입력: 발송자 Gmail 계정: 변경필요
-    password: ${MAIL_PASSWORD:nevo123!}          # 필수 입력: Gmail 앱 비밀번 계정호 16자리: 변경 필요
-    properties:
-      mail.smtp.auth: true
-      mail.smtp.starttls.enable: true
+  # Redis 설정 (OTP 저장용)
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}   # 로컬 개발 환경은 비워도 됨
 
 # JWT 설정
 jwt:
