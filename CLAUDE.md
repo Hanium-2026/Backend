@@ -54,12 +54,15 @@ username: nevo / password: nevo_backend
 docker-compose up -d
 
 # 실행 확인
-redis-cli ping  # PONG 응답 확인
+docker exec -it nevo-redis redis-cli ping  # PONG 응답 확인
+
+# Redis 접속
+docker exec -it nevo-redis redis-cli
 
 # OTP 키 확인 (개발 중 디버깅)
-redis-cli keys "sms:*"
-redis-cli get "sms:SIGNUP:01012345678"
-redis-cli ttl "sms:SIGNUP:01012345678"
+docker exec -it nevo-redis redis-cli keys "sms:*"
+docker exec -it nevo-redis redis-cli get "sms:SIGNUP:01012345678"
+docker exec -it nevo-redis redis-cli ttl "sms:SIGNUP:01012345678"
 ```
 
 ### 실행 방법
@@ -389,3 +392,11 @@ SMS API 연동 완료 후 `[DEV ONLY]` 로그 코드 삭제. 운영 로그에 OT
   - SSE 타임아웃 1시간, 재연결은 클라이언트 책임
   - 보호자 구독 즉시 DB 최신 위치 전송 (빈 화면 방지)
   - POST(WARD 전용) → UPSERT + SSE push / GET stream(GUARDIAN 전용) → SSE 구독
+
+---
+
+## 알려진 이슈 (수정 예정)
+
+- **N+1: WARD 로그인·토큰 갱신**: WARD 역할 사용자 로그인/refresh 시 User 조회 후 Ward 조회로 쿼리 2회 발생.
+  해결 방법: `User` 엔티티에 `@OneToOne(mappedBy="user") Ward ward` 추가 후 fetch join 적용.
+  **사용자/알림 담당 팀원과 협의 후 수정 필요** (User 엔티티 공동 소유).
