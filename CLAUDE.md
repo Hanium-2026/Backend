@@ -48,10 +48,10 @@ host: localhost / port: 5432 / db: nevo
 username: nevo / password: nevo_backend
 ```
 
-### 로컬 Redis 실행
+### 로컬 DB + Redis 실행
 ```bash
-# Homebrew로 설치한 경우
-brew services start redis
+# PostgreSQL + Redis 동시 실행 (OS 무관)
+docker-compose up -d
 
 # 실행 확인
 redis-cli ping  # PONG 응답 확인
