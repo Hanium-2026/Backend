@@ -7,6 +7,9 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.sql.*;
+import java.util.Scanner;
+
 @Entity
 @Table(name = "refresh_tokens")
 @Getter
