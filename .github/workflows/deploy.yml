@@ -57,6 +57,8 @@ jobs:
             aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
             docker pull $ECR_REGISTRY/$ECR_REPOSITORY:latest
             cd ~/app
-            export JWT_SECRET=$JWT_SECRET
-            export DB_PASSWORD=$DB_PASSWORD
-            docker compose -f docker-compose.prod.yml up -d --no-deps app
+            cat > .env << EOF
+JWT_SECRET=$JWT_SECRET
+DB_PASSWORD=$DB_PASSWORD
+EOF
+            docker compose -f docker-compose.prod.yml up -d

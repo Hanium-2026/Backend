@@ -395,6 +395,100 @@ SMS API 연동 완료 후 `[DEV ONLY]` 로그 코드 삭제. 운영 로그에 OT
 
 ---
 
+## 배포 설정
+
+### 배포 방식 (GitHub Actions → ECR → EC2)
+```
+main 브랜치 push (실 배포 기준)
+  → GitHub Actions
+      ① Docker 이미지 빌드
+      ② ECR에 이미지 업로드
+      ③ EC2에 SSH 접속 + .env 파일 생성
+      ④ ECR에서 이미지 pull
+      ⑤ docker compose up -d
+  → Amazon EC2 (eu-north-1)
+      ├── Spring Boot 4.0.6 / Java 21 (컨테이너, 8080포트)
+      └── Redis 7 (컨테이너)
+  → Amazon RDS - PostgreSQL 15 (실 배포 시 외부 분리)
+```
+
+### 관련 파일
+- `.github/workflows/deploy.yml` — GitHub Actions 워크플로우 (현재 트리거: `develop`)
+- `docker-compose.prod.yml` — 운영 환경 컨테이너 구성
+
+### GitHub Secrets (등록 완료)
+| Secret | 설명 |
+|--------|------|
+| `AWS_ACCESS_KEY_ID` | IAM 사용자 (nevo-github-actions) 액세스 키 |
+| `AWS_SECRET_ACCESS_KEY` | IAM 사용자 시크릿 키 |
+| `AWS_REGION` | `eu-north-1` |
+| `ECR_REPOSITORY` | `nevo-backend` |
+| `EC2_HOST` | EC2 퍼블릭 IP (재생성 시 업데이트 필요) |
+| `EC2_USER` | `ubuntu` |
+| `EC2_SSH_KEY` | nevo-key.pem 파일 내용 |
+| `JWT_SECRET` | JWT 서명 키 |
+| `DB_PASSWORD` | PostgreSQL 비밀번호 |
+
+### 현재 상황 (2026-06-25 기준)
+- [x] GitHub Actions → ECR → EC2 자동 배포 파이프라인 구성 완료
+- [x] ECR 레포지토리 생성 (`nevo-backend`, eu-north-1)
+- [x] IAM 사용자 생성 (`nevo-github-actions`, ECR+EC2 권한)
+- [x] Swagger UI 접속 확인 완료
+- [ ] EC2 인스턴스 종료(삭제) 상태 — 재 배포 시 재생성 필요
+
+### 실 배포 시 해야 할 것들
+
+**코드 수정**
+- `deploy.yml` 트리거: `develop` → `main`
+- `docker-compose.prod.yml`: db 서비스 제거, RDS 연결로 교체
+
+**AWS 인프라**
+- EC2 인스턴스 재생성 (아래 EC2 재생성 절차 참고)
+- Elastic IP 할당 (IP 고정)
+- Amazon RDS 생성 (PostgreSQL 15, t3.micro)
+- GitHub Secrets에 `DB_HOST`, `EC2_HOST` 업데이트
+- 도메인 연결 + Nginx + SSL 인증서 (HTTPS)
+- 보안그룹: 8080 닫고 80/443만 오픈
+
+**앱**
+- SMS API 연동 (`auth/service/SmsService.java` 로그 → 네이버 클라우드 SMS API)
+- Firebase 서비스 계정 JSON EC2에 업로드
+
+### EC2 재생성 절차
+```bash
+# 1. EC2 생성: Ubuntu, t3.micro, eu-north-1, 보안그룹 22/8080 오픈
+# 2. SSH 접속
+ssh -i ~/Downloads/nevo-key.pem ubuntu@{새 IP}
+
+# 3. Docker 설치
+sudo apt update && sudo apt install -y docker.io
+sudo usermod -aG docker ubuntu && sudo systemctl enable docker && sudo systemctl start docker
+# 재접속
+
+# 4. Docker Compose 플러그인 설치 (공식 저장소)
+sudo apt-get install -y ca-certificates curl
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update && sudo apt-get install -y docker-compose-plugin
+
+# 5. 앱 디렉토리 + 파일 업로드
+mkdir ~/app
+# 로컬에서 실행:
+scp -i ~/Downloads/nevo-key.pem docker-compose.prod.yml ubuntu@{새 IP}:~/app/
+
+# 6. .env 파일 생성 (EC2에서)
+cd ~/app
+echo 'JWT_SECRET={값}' > .env
+echo 'DB_PASSWORD={값}' >> .env
+
+# 7. GitHub Secrets EC2_HOST 새 IP로 업데이트
+# 8. develop(또는 main) 브랜치 push → 자동 배포 확인
+```
+
+---
+
 ## 알려진 이슈 (수정 예정)
 
 - **N+1: WARD 로그인·토큰 갱신**: WARD 역할 사용자 로그인/refresh 시 User 조회 후 Ward 조회로 쿼리 2회 발생.
