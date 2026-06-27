@@ -41,7 +41,8 @@ public class SecurityConfig {
             "/api/auth/password-reset/request",
             "/api/auth/password-reset/confirm",
             "/swagger-ui/**",
-            "/v3/api-docs/**"
+            "/v3/api-docs/**",
+            "/api/health"
     };
 
     @Bean
