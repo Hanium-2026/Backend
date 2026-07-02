@@ -1,3 +1,11 @@
+## 👨‍💻 Developers
+
+| <img src="https://avatars.githubusercontent.com/u/213448038?v=4" width=100> | <img src="https://avatars.githubusercontent.com/u/221977113?v=4" width=100>
+| :------------------------------------------------------------------------: | :------------------------------------------------------------------------: |
+|                   [이충환](https://github.com/Chungs0604)                   |                   [양현준](https://github.com/HyunJun6011)                   |          
+
+<br>
+
 ## 🎯 Git Convention
 
 | 이모지 | 타입 | 설명 |
