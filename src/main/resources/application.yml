@@ -6,7 +6,7 @@ spring:
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:nevo}
     username: ${DB_USERNAME:nevo}
-    password: ${DB_PASSWORD:nevo_backend}
+    password: ${DB_PASSWORD:nevo_backend  }
     driver-class-name: org.postgresql.Driver
 
   jpa:

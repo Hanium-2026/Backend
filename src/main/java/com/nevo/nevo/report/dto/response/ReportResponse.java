@@ -74,8 +74,12 @@ public class ReportResponse {
     // GUARDIAN 전용. 기간별(days=7/30/90) 일별 통계 + 오늘 핵심 지표
     @Builder
     public record GuardianDailyReport(
+            // 7/30/90일치 날짜별 집계 (하루 단위)
             List<DailyStats> dailyScores,
-            TodayMetrics todayMetrics
+            // 오늘 하루 집계값 (평균 점수, 위험 횟수 등)
+            TodayMetrics todayMetrics,
+
+            List<SessionSummary> sessions
     ) {}
 
     // GET /api/gait/reports/dashboard

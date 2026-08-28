@@ -147,6 +147,23 @@ public class ReportService {
                 .map(this::toDailyStats)
                 .toList();
 
+        List<GaitReport> reports = gaitReportRepository
+                .findAllByWard_IdAndCreatedAtBetweenOrderByCreatedAtDesc(
+                        wardId,
+                        from.atStartOfDay(),
+                        today.atTime(LocalTime.MAX)
+                );
+
+        List<ReportResponse.SessionSummary> sessionList = reports.stream()
+                .map(r -> ReportResponse.SessionSummary.builder()
+                        .sessionId(r.getSession().getId())
+                        .createdAt(r.getCreatedAt())
+                        .riskLevel(r.getRiskLevel().name())
+                        .avgScore(r.getAvgScore())
+                        .symmetryScore(toSymmetryScore(r.getAsymmetryScore()))
+                        .build())
+                .toList();
+
         ReportResponse.TodayMetrics todayMetrics = dailyScores.stream()
                 .filter(d -> d.getDate().equals(today))
                 .findFirst()
@@ -166,6 +183,7 @@ public class ReportService {
                 ReportResponse.GuardianDailyReport.builder()
                         .dailyScores(dailyStatsList)
                         .todayMetrics(todayMetrics)
+                        .sessions(sessionList)
                         .build()
         ));
     }
