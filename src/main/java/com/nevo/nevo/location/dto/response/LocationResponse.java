@@ -13,4 +13,11 @@ public class LocationResponse {
             Double longitude,
             LocalDateTime recordedAt
     ) {}
+
+    @Builder
+    public record HistoryPoint(
+            Double latitude,
+            Double longitude,
+            LocalDateTime recordedAt
+    ) {}
 }
