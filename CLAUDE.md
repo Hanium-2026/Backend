@@ -31,7 +31,7 @@
 | 변수 | 설명 | 예시 |
 |------|------|------|
 | `JWT_SECRET` | JWT 서명 키 (32자 이상) | `my-secret-key-for-local-dev-only` |
-| `FIREBASE_CREDENTIALS_PATH` | Firebase 서비스 계정 JSON 경로 (classpath 기준) | `firebase-service-account.json` |
+| `FIREBASE_CREDENTIALS_PATH` | Firebase 서비스 계정 JSON 경로 (파일시스템 경로, 로컬은 프로젝트 루트 기준 상대경로, Render는 Secret File 절대경로) | 로컬 `src/main/resources/firebase-service-account.json` / Render `/etc/secrets/firebase-service-account.json` |
 | `REDIS_HOST` | Redis 호스트 (기본값: localhost) | `localhost` |
 | `REDIS_PORT` | Redis 포트 (기본값: 6379) | `6379` |
 | `REDIS_PASSWORD` | Redis 비밀번호 (로컬은 빈 값) | — |

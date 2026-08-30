@@ -37,7 +37,7 @@ jwt:
 
 # Firebase FCM 설정
 firebase:
-  credentials-path: ${FIREBASE_CREDENTIALS_PATH:firebase-service-account.json}
+  credentials-path: ${FIREBASE_CREDENTIALS_PATH:src/main/resources/firebase-service-account.json}
 
 # Swagger UI 경로 설정
 springdoc:

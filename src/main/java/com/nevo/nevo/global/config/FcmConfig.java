@@ -7,8 +7,9 @@ import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.io.ClassPathResource;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -23,13 +24,13 @@ public class FcmConfig {
     public void init() {
         if (!FirebaseApp.getApps().isEmpty()) return;
 
-        ClassPathResource resource = new ClassPathResource(credentialsPath);
-        if (!resource.exists()) {
-            log.warn("Firebase 서비스 계정 파일({})이 없습니다. FCM 기능이 비활성화됩니다.", credentialsPath);
+        File file = new File(credentialsPath);
+        if (!file.exists()) {
+            log.warn("Firebase 서비스 계정 파일({})이 없습니다. FCM 기능이 비활성화됩니다.", file.getAbsolutePath());
             return;
         }
 
-        try (InputStream is = resource.getInputStream()) {
+        try (InputStream is = new FileInputStream(file)) {
             FirebaseOptions options = FirebaseOptions.builder()
                     .setCredentials(GoogleCredentials.fromStream(is))
                     .build();
