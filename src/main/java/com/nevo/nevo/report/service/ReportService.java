@@ -10,6 +10,8 @@ import com.nevo.nevo.report.exception.code.ReportErrorCode;
 import com.nevo.nevo.report.exception.code.ReportSuccessCode;
 import com.nevo.nevo.report.repository.DailyScoreRepository;
 import com.nevo.nevo.report.repository.GaitReportRepository;
+import com.nevo.nevo.session.dto.response.SessionResponse;
+import com.nevo.nevo.session.repository.SessionScoreRepository;
 import com.nevo.nevo.ward.entity.Ward;
 import com.nevo.nevo.ward.entity.WardGuardianLink;
 import com.nevo.nevo.ward.repository.WardGuardianLinkRepository;
@@ -35,6 +37,7 @@ public class ReportService {
     private final DailyScoreRepository dailyScoreRepository;
     private final WardGuardianLinkRepository wardGuardianLinkRepository;
     private final WardRepository wardRepository;
+    private final SessionScoreRepository sessionScoreRepository;
 
     // GET /api/gait/reports/{sessionId}
     // WARD: 본인 세션인지 wardId 일치 확인
@@ -59,6 +62,18 @@ public class ReportService {
             }
         }
 
+        List<SessionResponse.MinutePoint> minutePoints = sessionScoreRepository
+                .findBySessionScoreAtMinute(sessionId)
+                .stream().map(score -> SessionResponse.MinutePoint.builder()
+                        .avgScore(score.getAvgScore())
+                        .minScore(score.getMinScore())
+                        .maxScore(score.getMaxScore())
+                        .dangerCount(score.getDangerCount())
+                        .minuteAt(score.getMinuteAt())
+                        .build())
+                        .toList();
+
+
         Float symmetryScore = toSymmetryScore(report.getAsymmetryScore());
 
         return ResponseEntity.ok(SuccessResponse.of(
@@ -74,6 +89,7 @@ public class ReportService {
                         .variabilityScore(report.getVariabilityScore())
                         .symmetryScore(symmetryScore)
                         .reportSummary(report.getReportSummary())
+                        .minuteScores(minutePoints)
                         .build()
         ));
     }

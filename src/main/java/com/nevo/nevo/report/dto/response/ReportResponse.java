@@ -1,5 +1,6 @@
 package com.nevo.nevo.report.dto.response;
 
+import com.nevo.nevo.session.dto.response.SessionResponse;
 import lombok.Builder;
 
 import java.time.LocalDate;
@@ -21,8 +22,12 @@ public class ReportResponse {
             Integer dangerCount,
             Float variabilityScore,
             Float symmetryScore,      // asymmetryScore 변환값: (1 - asymmetryScore) * 100
-            String reportSummary
+            String reportSummary,
+
+            List<SessionResponse.MinutePoint> minuteScores // 분당 보행 점수
     ) {}
+
+
 
     // GET /api/gait/reports/daily, GET /api/gait/reports/ward/{wardId}/daily
     // daily_scores 테이블의 1일치 집계 행. 하루에 세션이 여러 개면 가중 평균으로 누적됨
@@ -35,7 +40,8 @@ public class ReportResponse {
             Integer sessionCount,
             Integer dangerCount,
             Float variabilityScore,
-            Float symmetryScore       // asymmetryScore 변환값: (1 - asymmetryScore) * 100
+            Float symmetryScore    // asymmetryScore 변환값: (1 - asymmetryScore) * 100
+
     ) {}
 
     // GET /api/gait/reports/daily

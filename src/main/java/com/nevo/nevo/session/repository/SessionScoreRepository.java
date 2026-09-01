@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public interface SessionScoreRepository extends JpaRepository<SessionScore, Long> {
 
@@ -42,4 +43,11 @@ public interface SessionScoreRepository extends JpaRepository<SessionScore, Long
     int expireOrphanedScores(@Param("expiresAt") LocalDateTime expiresAt,
                              @Param("threshold") LocalDateTime threshold);
 
+
+    // 해당 세션의 분당 기록을 조회(7일 경과 후 분당 데이터가 없을 경우 빈 리스트)
+    @Query("select sc from SessionScore sc " +
+            "where sc.session.id = :sessionId " +
+            "order by sc.minuteAt")
+    List<SessionScore> findBySessionScoreAtMinute(
+        @Param("sessionId") Long sessionId);
 }
