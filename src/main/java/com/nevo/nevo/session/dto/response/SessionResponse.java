@@ -20,4 +20,14 @@ public class SessionResponse {
 
     @Builder
     public record DataUpload(int saved, int skipped) {}
+
+    // 분당 기록
+    @Builder
+    public record MinutePoint(
+            Float avgScore,
+            Float minScore,
+            Float maxScore,
+            Integer dangerCount,
+            LocalDateTime minuteAt
+            ) {}
 }
