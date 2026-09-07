@@ -31,7 +31,7 @@ public class JwtUtil {
         this.refreshExpiration = refreshExpiration;
     }
 
-    // 액세스 토큰 생성
+    // 액세스 토큰 문자열 생성
     public String generateAccessToken(Long userId, Long wardId, String role) {
         return Jwts.builder()
                 .claim("userId", userId)
@@ -43,7 +43,7 @@ public class JwtUtil {
                 .compact();
     }
 
-    // 리프레시 토큰 생성
+    // 리프레시 토큰 문자열 생성
     public String generateRefreshToken(Long userId) {
         return Jwts.builder()
                 .claim("userId", userId)

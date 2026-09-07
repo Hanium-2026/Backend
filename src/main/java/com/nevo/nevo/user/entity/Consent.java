@@ -1,19 +1,16 @@
 package com.nevo.nevo.user.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "consents")
 @Getter
-@Builder
-@AllArgsConstructor
-@NoArgsConstructor
+@Builder(access = AccessLevel.PRIVATE)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Consent {
 
     @Id
@@ -36,4 +33,16 @@ public class Consent {
 
     @Column(name = "agreed_at")
     private LocalDateTime agreedAt;
+
+
+    public static Consent from(
+            User user, ConsentType consentType, Boolean agreed, LocalDateTime agreedAt
+    ) {
+        return Consent.builder()
+                .user(user)
+                .consentType(consentType)
+                .agreed(agreed)
+                .agreedAt(agreedAt)
+                .build();
+    }
 }

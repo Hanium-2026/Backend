@@ -90,6 +90,7 @@ public class SmsService {
     public void consumeVerified(String phone, SmsVerificationPurpose purpose) {
         String key = verifiedKey(phone, purpose);
         if (!Boolean.TRUE.equals(redisTemplate.hasKey(key))) {
+            log.warn("sms인증 - 인증되지 않은 번호입니다. phoneNumber = {}", phone);
             throw new CustomException(AuthErrorCode.PHONE_NOT_VERIFIED);
         }
         redisTemplate.delete(key); // 사용 후 즉시 삭제 (재사용 방지)

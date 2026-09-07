@@ -7,6 +7,7 @@ import com.nevo.nevo.auth.entity.RefreshToken;
 import com.nevo.nevo.auth.entity.SmsVerificationPurpose;
 import com.nevo.nevo.auth.exception.code.AuthErrorCode;
 import com.nevo.nevo.auth.jwt.JwtUtil;
+import com.nevo.nevo.auth.mapper.AuthResponseMapper;
 import com.nevo.nevo.auth.repository.RefreshTokenRepository;
 import com.nevo.nevo.global.exception.CustomException;
 import com.nevo.nevo.user.entity.Consent;
@@ -18,6 +19,7 @@ import com.nevo.nevo.user.repository.UserRepository;
 import com.nevo.nevo.ward.entity.Ward;
 import com.nevo.nevo.ward.repository.WardRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -34,6 +36,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 @Transactional(readOnly = true)
 public class AuthService {
 
@@ -61,86 +64,84 @@ public class AuthService {
     // /sms/verify(SIGNUP) 완료 후 호출해야 함
     @Transactional
     public AuthResponse.SignUp signUp(AuthRequest.SignUp request) {
-        // 1. 전화번호 인증 완료 여부 확인 (미인증 시 예외)
+        // 전화번호 인증 완료 여부 확인 (미인증 시 예외)
         smsService.consumeVerified(request.phone(), SmsVerificationPurpose.SIGNUP);
 
-        // 2. 전화번호 중복 확인 (탈퇴하지 않은 사용자 기준)
+        // 전화번호 중복 확인 (탈퇴하지 않은 사용자 기준)
         if (userRepository.existsByPhoneAndDeletedAtIsNull(request.phone())) {
+            log.warn("[회원가입] 이미 존재하는 전화번호입니다.");
             throw new CustomException(AuthErrorCode.PHONE_DUPLICATED);
         }
 
-        // 3. WARD 필수 필드 사전 검증
+        // WARD 필수 필드 사전 검증
         if (request.role() == Role.WARD) {
             if (request.height() == null || request.weight() == null
                     || request.birthDate() == null || request.gender() == null) {
+                log.warn("[회원가입] 필수 항목들을 입력해주세요.");
                 throw new CustomException(AuthErrorCode.WARD_FIELDS_REQUIRED);
             }
         }
 
-        // 4. 필수 약관 동의 검증 (TERMS, PRIVACY는 agreed=true 필수)
+        // 필수 약관 동의 검증 (TERMS, PRIVACY는 agreed=true 필수)
         Set<ConsentType> requiredConsents = Set.of(ConsentType.TERMS, ConsentType.PRIVACY);
+
         Map<ConsentType, Boolean> consentMap = request.consents().stream()
                 .collect(Collectors.toMap(ConsentItem::consentType, ConsentItem::agreed));
+
         for (ConsentType type : requiredConsents) {
             if (!Boolean.TRUE.equals(consentMap.get(type))) {
+                log.warn("[회원가입] 이용약관, 개인정보 처리방침은 필수 항목입니다.");
                 throw new CustomException(AuthErrorCode.REQUIRED_CONSENT_NOT_AGREED);
             }
         }
 
-        // 5. User 저장 (동시 요청 레이스 컨디션: unique constraint 위반 시 PHONE_DUPLICATED 반환)
+        // User 저장 (동시 요청 레이스 컨디션: unique constraint 위반 시 PHONE_DUPLICATED 반환)
         User user;
         try {
-            user = userRepository.save(User.builder()
-                    .phone(request.phone())
-                    .password(passwordEncoder.encode(request.password()))
-                    .name(request.name())
-                    .role(request.role())
-                    .build());
+
+            user = User.from(
+                    request.phone(), passwordEncoder.encode(request.password()), request.name(), request.role()
+            );
+
+            // 즉시 flush
+            userRepository.saveAndFlush(user);
+
         } catch (DataIntegrityViolationException e) {
-            throw new CustomException(AuthErrorCode.PHONE_DUPLICATED);
+                log.warn("[회원가입] 동시요청: {}", e.getMessage());
+                throw new CustomException(AuthErrorCode.PHONE_DUPLICATED);
         }
 
-        // 6. WARD이면 Ward 저장
+        // WARD이면 Ward 저장
         Long wardId = null;
         if (request.role() == Role.WARD) {
-            Ward ward = Ward.builder()
-                    .user(user)
-                    .height(request.height())
-                    .weight(request.weight())
-                    .birthDate(request.birthDate())
-                    .gender(request.gender())
-                    .build();
+
+            Ward ward = Ward.from(
+                    user, request.height(), request.weight(), request.birthDate(), request.gender()
+            );
+
             wardRepository.save(ward);
             wardId = ward.getId();
         }
 
-        // 7. Consent 목록 저장
+        // Consent 목록 저장
         List<Consent> consents = request.consents().stream()
-                .map(item -> Consent.builder()
-                        .user(user)
-                        .consentType(item.consentType())
-                        .agreed(item.agreed())
-                        .agreedAt(item.agreed() ? LocalDateTime.now() : null)
-                        .build())
-                .toList();
+                .map(item ->
+                        Consent.from(
+                                user, item.consentType(), item.agreed(), (item.agreed() ? LocalDateTime.now() : null)
+                )).toList();
+
         consentRepository.saveAll(consents);
 
-        // 8. JWT 발급
-        String accessToken = jwtUtil.generateAccessToken(user.getId(), wardId, request.role().name());
-        String refreshToken = jwtUtil.generateRefreshToken(user.getId());
+        // JWT 발급
+        String accessTokenString = jwtUtil.generateAccessToken(user.getId(), wardId, request.role().name());
+        String refreshTokenString = jwtUtil.generateRefreshToken(user.getId());
 
-        // 9. RefreshToken 해시 저장
-        refreshTokenRepository.save(RefreshToken.builder()
-                .user(user)
-                .tokenHash(hashToken(refreshToken))
-                .deviceId(request.deviceId())
-                .build());
+        // RefreshToken 해시 저장
+        RefreshToken refreshToken = RefreshToken.create(user, hashToken(refreshTokenString), request.deviceId());
+        refreshTokenRepository.save(refreshToken);
 
-        return AuthResponse.SignUp.builder()
-                .accessToken(accessToken)
-                .refreshToken(refreshToken)
-                .role(request.role().name())
-                .build();
+        return AuthResponseMapper
+                .toSignUp(accessTokenString, refreshTokenString, request.role().name());
     }
 
     // 로그인 - POST /api/auth/login
@@ -164,8 +165,8 @@ public class AuthService {
         }
 
         // 4. JWT 발급
-        String accessToken = jwtUtil.generateAccessToken(user.getId(), wardId, user.getRole().name());
-        String refreshToken = jwtUtil.generateRefreshToken(user.getId());
+        String accessTokenString = jwtUtil.generateAccessToken(user.getId(), wardId, user.getRole().name());
+        String refreshTokenString = jwtUtil.generateRefreshToken(user.getId());
 
         // 5. 동일 device 기존 토큰 전체 revoke (비정상 상황으로 복수 존재 시에도 안전)
         refreshTokenRepository.findAllByUser_IdAndDeviceIdAndRevokedFalse(user.getId(), request.deviceId())
@@ -179,15 +180,12 @@ public class AuthService {
         }
 
         // 7. 새 RefreshToken 해시 저장
-        refreshTokenRepository.save(RefreshToken.builder()
-                .user(user)
-                .tokenHash(hashToken(refreshToken))
-                .deviceId(request.deviceId())
-                .build());
+        RefreshToken refreshToken = RefreshToken.create(user, hashToken(refreshTokenString), request.deviceId());
+        refreshTokenRepository.save(refreshToken);
 
         return AuthResponse.Login.builder()
-                .accessToken(accessToken)
-                .refreshToken(refreshToken)
+                .accessToken(accessTokenString)
+                .refreshToken(refreshTokenString)
                 .role(user.getRole().name())
                 .build();
     }
@@ -232,18 +230,15 @@ public class AuthService {
         oldToken.markUsed();
 
         // 5. 새 토큰 발급 및 저장
-        String newAccessToken = jwtUtil.generateAccessToken(user.getId(), wardId, user.getRole().name());
-        String newRefreshToken = jwtUtil.generateRefreshToken(user.getId());
+        String newAccessTokenString = jwtUtil.generateAccessToken(user.getId(), wardId, user.getRole().name());
+        String newRefreshTokenString = jwtUtil.generateRefreshToken(user.getId());
 
-        refreshTokenRepository.save(RefreshToken.builder()
-                .user(user)
-                .tokenHash(hashToken(newRefreshToken))
-                .deviceId(oldToken.getDeviceId())
-                .build());
+        RefreshToken refreshToken = RefreshToken.create(user, hashToken(newRefreshTokenString), oldToken.getDeviceId());
+        refreshTokenRepository.save(refreshToken);
 
         return AuthResponse.Refresh.builder()
-                .accessToken(newAccessToken)
-                .refreshToken(newRefreshToken)
+                .accessToken(newAccessTokenString)
+                .refreshToken(newRefreshTokenString)
                 .role(user.getRole().name())
                 .build();
     }
@@ -276,6 +271,7 @@ public class AuthService {
         smsService.sendPasswordChangedNotification(request.phone());
     }
 
+    // 토근값 SHA-256 해시
     private String hashToken(String token) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
