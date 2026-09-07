@@ -39,3 +39,6 @@ out/
 ### 민감 파일 ###
 firebase-service-account.json
 .env
+
+### 로컬 전용 ###
+AGENTS.md

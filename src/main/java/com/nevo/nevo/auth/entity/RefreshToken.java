@@ -2,10 +2,7 @@ package com.nevo.nevo.auth.entity;
 
 import com.nevo.nevo.user.entity.User;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.sql.*;
 import java.util.Scanner;
@@ -13,9 +10,9 @@ import java.util.Scanner;
 @Entity
 @Table(name = "refresh_tokens")
 @Getter
-@Builder
-@AllArgsConstructor
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@Builder(access = AccessLevel.PRIVATE)
 public class RefreshToken {
 
     @Id
@@ -46,5 +43,13 @@ public class RefreshToken {
 
     public void markUsed() {
         this.used = true;
+    }
+
+    public static RefreshToken create(User user, String tokenHash, String deviceId) {
+        return RefreshToken.builder()
+                .user(user)
+                .tokenHash(tokenHash)
+                .deviceId(deviceId)
+                .build();
     }
 }
