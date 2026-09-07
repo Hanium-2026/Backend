@@ -2,6 +2,8 @@ package com.nevo.nevo.auth.repository;
 
 import com.nevo.nevo.auth.entity.RefreshToken;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -15,7 +17,13 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
 
     List<RefreshToken> findAllByUser_IdAndDeviceIdAndRevokedFalse(Long userId, String deviceId);
 
-    List<RefreshToken> findAllByUser_IdAndRevokedFalseOrderByIdAsc(Long userId);
+    @Query("""
+            select token from RefreshToken token
+                where token.user.id = :userId
+                    and token.revoked = false and token.used = false
+                        order by token.id asc
+    """)
+    List<RefreshToken> findAllActiveRefreshToken(@Param("userId") Long userId);
 
     Optional<RefreshToken> findByTokenHashAndRevokedFalseAndUsedFalse(String tokenHash);
 }

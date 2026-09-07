@@ -12,7 +12,6 @@ import com.nevo.nevo.auth.repository.RefreshTokenRepository;
 import com.nevo.nevo.global.exception.CustomException;
 import com.nevo.nevo.user.entity.Consent;
 import com.nevo.nevo.user.entity.ConsentType;
-import com.nevo.nevo.user.entity.Role;
 import com.nevo.nevo.user.entity.User;
 import com.nevo.nevo.user.repository.ConsentRepository;
 import com.nevo.nevo.user.repository.UserRepository;
@@ -33,6 +32,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import static com.nevo.nevo.user.entity.Role.*;
 
 @Service
 @RequiredArgsConstructor
@@ -63,7 +64,7 @@ public class AuthService {
     // 회원가입 - POST /api/auth/sign-up
     // /sms/verify(SIGNUP) 완료 후 호출해야 함
     @Transactional
-    public AuthResponse.SignUp signUp(AuthRequest.SignUp request) {
+    public AuthResponse.Token signUp(AuthRequest.SignUp request) {
         // 전화번호 인증 완료 여부 확인 (미인증 시 예외)
         smsService.consumeVerified(request.phone(), SmsVerificationPurpose.SIGNUP);
 
@@ -74,7 +75,7 @@ public class AuthService {
         }
 
         // WARD 필수 필드 사전 검증
-        if (request.role() == Role.WARD) {
+        if (request.role() == WARD) {
             if (request.height() == null || request.weight() == null
                     || request.birthDate() == null || request.gender() == null) {
                 log.warn("[회원가입] 필수 항목들을 입력해주세요.");
@@ -113,7 +114,7 @@ public class AuthService {
 
         // WARD이면 Ward 저장
         Long wardId = null;
-        if (request.role() == Role.WARD) {
+        if (request.role() == WARD) {
 
             Ward ward = Ward.from(
                     user, request.height(), request.weight(), request.birthDate(), request.gender()
@@ -141,53 +142,59 @@ public class AuthService {
         refreshTokenRepository.save(refreshToken);
 
         return AuthResponseMapper
-                .toSignUp(accessTokenString, refreshTokenString, request.role().name());
+                .toTokenResponse(accessTokenString, refreshTokenString, request.role().name());
     }
 
     // 로그인 - POST /api/auth/login
     @Transactional
-    public AuthResponse.Login login(AuthRequest.Login request) {
-        // 1. 전화번호로 사용자 조회 (탈퇴 제외)
+    public AuthResponse.Token login(AuthRequest.Login request) {
+        // 전화번호로 사용자 조회 (탈퇴 제외)
         User user = userRepository.findByPhoneAndDeletedAtIsNull(request.phone())
-                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_CREDENTIALS));
+                .orElseThrow(() -> {
+                    log.warn("[로그인] 전화번호 또는 비밀번호가 일치하지 않습니다.");
+                    return new CustomException(AuthErrorCode.INVALID_CREDENTIALS);
+                });
 
-        // 2. 비밀번호 검증 (전화번호/비밀번호 어느 쪽이 틀렸는지 노출 금지)
+        // 비밀번호 검증 (전화번호/비밀번호 어느 쪽이 틀렸는지 노출 금지)
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
+            log.warn("[로그인] 전화번호 또는 비밀번호가 일치하지 않습니다.");
             throw new CustomException(AuthErrorCode.INVALID_CREDENTIALS);
         }
 
-        // 3. WARD면 wardId 조회, GUARDIAN이면 null
+        // WARD면 wardId 조회, GUARDIAN이면 null
         Long wardId = null;
-        if (user.getRole() == Role.WARD) {
+        if (user.getRole() == WARD) {
             wardId = wardRepository.findByUser_Id(user.getId())
                     .map(Ward::getId)
-                    .orElseThrow(() -> new CustomException(AuthErrorCode.WARD_NOT_FOUND));
+                    .orElseThrow(() -> {
+                        log.warn("[로그인] WARD를 찾을 수 없습니다. userId = {}", user.getId());
+                        return new CustomException(AuthErrorCode.WARD_NOT_FOUND);
+                    });
         }
 
-        // 4. JWT 발급
+        // JWT 발급
         String accessTokenString = jwtUtil.generateAccessToken(user.getId(), wardId, user.getRole().name());
         String refreshTokenString = jwtUtil.generateRefreshToken(user.getId());
 
-        // 5. 동일 device 기존 토큰 전체 revoke (비정상 상황으로 복수 존재 시에도 안전)
-        refreshTokenRepository.findAllByUser_IdAndDeviceIdAndRevokedFalse(user.getId(), request.deviceId())
+        // 동일 device 기존 토큰 전체 revoke (비정상 상황으로 복수 존재 시에도 안전)
+        refreshTokenRepository
+                .findAllByUser_IdAndDeviceIdAndRevokedFalse(user.getId(), request.deviceId())
                 .forEach(RefreshToken::revoke);
 
-        // 6. 디바이스 수 제한: 활성 토큰이 5개 이상이면 오래된 것부터 revoke
+        // 디바이스 수 제한: 활성 토큰이 5개 이상이면 오래된 것부터 revoke
         List<RefreshToken> activeTokens = refreshTokenRepository
-                .findAllByUser_IdAndRevokedFalseOrderByIdAsc(user.getId());
+                .findAllActiveRefreshToken(user.getId());
+
         if (activeTokens.size() >= 5) {
             activeTokens.subList(0, activeTokens.size() - 4).forEach(RefreshToken::revoke);
         }
 
-        // 7. 새 RefreshToken 해시 저장
+        // 새 RefreshToken 해시 저장
         RefreshToken refreshToken = RefreshToken.create(user, hashToken(refreshTokenString), request.deviceId());
         refreshTokenRepository.save(refreshToken);
 
-        return AuthResponse.Login.builder()
-                .accessToken(accessTokenString)
-                .refreshToken(refreshTokenString)
-                .role(user.getRole().name())
-                .build();
+        return AuthResponseMapper
+                .toTokenResponse(accessTokenString, refreshTokenString, user.getRole().name());
     }
 
     // 로그아웃 - POST /api/auth/logout
@@ -207,7 +214,7 @@ public class AuthService {
 
     // 토큰 갱신 - POST /api/auth/refresh
     @Transactional
-    public AuthResponse.Refresh refresh(AuthRequest.Refresh request) {
+    public AuthResponse.Token refresh(AuthRequest.Refresh request) {
         // 1. JWT 서명·만료 검증
         jwtUtil.parseClaims(request.refreshToken());
 
@@ -220,7 +227,7 @@ public class AuthService {
 
         // 3. WARD면 wardId 조회, GUARDIAN이면 null
         Long wardId = null;
-        if (user.getRole() == Role.WARD) {
+        if (user.getRole() == WARD) {
             wardId = wardRepository.findByUser_Id(user.getId())
                     .map(Ward::getId)
                     .orElseThrow(() -> new CustomException(AuthErrorCode.WARD_NOT_FOUND));
@@ -236,11 +243,8 @@ public class AuthService {
         RefreshToken refreshToken = RefreshToken.create(user, hashToken(newRefreshTokenString), oldToken.getDeviceId());
         refreshTokenRepository.save(refreshToken);
 
-        return AuthResponse.Refresh.builder()
-                .accessToken(newAccessTokenString)
-                .refreshToken(newRefreshTokenString)
-                .role(user.getRole().name())
-                .build();
+        return AuthResponseMapper
+                .toTokenResponse(newAccessTokenString, newRefreshTokenString, user.getRole().name());
     }
 
     // 비밀번호 재설정 요청 - POST /api/auth/password-reset/request
