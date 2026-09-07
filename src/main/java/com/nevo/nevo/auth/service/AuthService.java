@@ -65,6 +65,9 @@ public class AuthService {
     // /sms/verify(SIGNUP) 완료 후 호출해야 함
     @Transactional
     public AuthResponse.Token signUp(AuthRequest.SignUp request) {
+
+        log.info("[회원가입] 회원가입 api 호출");
+
         // 전화번호 인증 완료 여부 확인 (미인증 시 예외)
         smsService.consumeVerified(request.phone(), SmsVerificationPurpose.SIGNUP);
 
@@ -148,6 +151,9 @@ public class AuthService {
     // 로그인 - POST /api/auth/login
     @Transactional
     public AuthResponse.Token login(AuthRequest.Login request) {
+
+        log.info("[로그인] 로그인 api 호출");
+
         // 전화번호로 사용자 조회 (탈퇴 제외)
         User user = userRepository.findByPhoneAndDeletedAtIsNull(request.phone())
                 .orElseThrow(() -> {
