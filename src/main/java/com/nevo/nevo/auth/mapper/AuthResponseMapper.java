@@ -4,8 +4,8 @@ import com.nevo.nevo.auth.dto.response.AuthResponse;
 
 public class AuthResponseMapper {
 
-    public static AuthResponse.SignUp toSignUp(String accessToken, String refreshToken, String role) {
-        return AuthResponse.SignUp
+    public static AuthResponse.Token toTokenResponse(String accessToken, String refreshToken, String role) {
+        return AuthResponse.Token
                 .builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)

@@ -25,10 +25,13 @@ public class RefreshToken {
     @Column(name = "device_id", nullable = false)
     private String deviceId;
 
+    // 로그아웃, 재로그인: 기존 토큰: true
     @Builder.Default
     @Column(nullable = false)
     private Boolean revoked = false;
 
+
+    // 엑세스 만료시 /refresh 호출 -> 새로운 token 교체 -> 기존: used=true
     @Builder.Default
     @Column(nullable = false)
     private Boolean used = false;

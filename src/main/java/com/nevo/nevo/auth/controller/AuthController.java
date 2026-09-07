@@ -41,20 +41,20 @@ public class AuthController {
 
     @PostMapping("/sign-up")
     @Operation(summary = "회원가입", description = "SMS 인증 완료 후 WARD 또는 GUARDIAN 역할로 회원가입합니다.")
-    public ResponseEntity<SuccessResponse<AuthResponse.SignUp>> signUp(
+    public ResponseEntity<SuccessResponse<AuthResponse.Token>> signUp(
             @RequestBody @Valid AuthRequest.SignUp request)
     {
-        AuthResponse.SignUp response = authService.signUp(request);
+        AuthResponse.Token response = authService.signUp(request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(SuccessResponse.of(AuthSuccessCode.SIGN_UP_SUCCESS, response));
     }
 
     @PostMapping("/login")
     @Operation(summary = "로그인", description = "전화번호/비밀번호로 로그인합니다.")
-    public ResponseEntity<SuccessResponse<AuthResponse.Login>> login(
+    public ResponseEntity<SuccessResponse<AuthResponse.Token>> login(
             @RequestBody @Valid AuthRequest.Login request)
     {
-        AuthResponse.Login response = authService.login(request);
+        AuthResponse.Token response = authService.login(request);
         return ResponseEntity.ok(SuccessResponse.of(AuthSuccessCode.LOGIN_SUCCESS, response));
     }
 
@@ -69,10 +69,10 @@ public class AuthController {
 
     @PostMapping("/refresh")
     @Operation(summary = "토큰 갱신", description = "리프레시 토큰으로 새 액세스/리프레시 토큰을 발급합니다.")
-    public ResponseEntity<SuccessResponse<AuthResponse.Refresh>> refresh(
+    public ResponseEntity<SuccessResponse<AuthResponse.Token>> refresh(
             @RequestBody @Valid AuthRequest.Refresh request)
     {
-        AuthResponse.Refresh response = authService.refresh(request);
+        AuthResponse.Token response = authService.refresh(request);
         return ResponseEntity.ok(SuccessResponse.of(AuthSuccessCode.TOKEN_REFRESH_SUCCESS, response));
     }
 
