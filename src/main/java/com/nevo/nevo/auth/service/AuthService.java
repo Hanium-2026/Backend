@@ -66,7 +66,7 @@ public class AuthService {
     @Transactional
     public AuthResponse.Token signUp(AuthRequest.SignUp request) {
 
-        log.info("[회원가입] 회원가입 api 호출");
+        log.info("[회원가입] 회원가입 호출");
 
         // 전화번호 인증 완료 여부 확인 (미인증 시 예외)
         smsService.consumeVerified(request.phone(), SmsVerificationPurpose.SIGNUP);
@@ -144,6 +144,8 @@ public class AuthService {
         RefreshToken refreshToken = RefreshToken.create(user, hashToken(refreshTokenString), request.deviceId());
         refreshTokenRepository.save(refreshToken);
 
+        log.info("[회원가입] 회원가입 완료");
+
         return AuthResponseMapper
                 .toTokenResponse(accessTokenString, refreshTokenString, request.role().name());
     }
@@ -152,7 +154,7 @@ public class AuthService {
     @Transactional
     public AuthResponse.Token login(AuthRequest.Login request) {
 
-        log.info("[로그인] 로그인 api 호출");
+        log.info("[로그인] 로그인  호출");
 
         // 전화번호로 사용자 조회 (탈퇴 제외)
         User user = userRepository.findByPhoneAndDeletedAtIsNull(request.phone())
@@ -199,6 +201,8 @@ public class AuthService {
         RefreshToken refreshToken = RefreshToken.create(user, hashToken(refreshTokenString), request.deviceId());
         refreshTokenRepository.save(refreshToken);
 
+        log.info("[로그인] 로그인 완료");
+
         return AuthResponseMapper
                 .toTokenResponse(accessTokenString, refreshTokenString, user.getRole().name());
     }
@@ -207,7 +211,7 @@ public class AuthService {
     @Transactional
     public void logout(AuthRequest.Logout request) {
 
-        log.info("[로그아웃] 로그아웃 api 호출");
+        log.info("[로그아웃] 로그아웃 호출");
         String hash = hashToken(request.refreshToken());
 
         RefreshToken token = refreshTokenRepository.findByTokenHash(hash)
@@ -222,39 +226,55 @@ public class AuthService {
         }
 
         token.revoke();
+        log.info("[로그아웃] 로그아웃 완료");
     }
 
     // 토큰 갱신 - POST /api/auth/refresh
     @Transactional
     public AuthResponse.Token refresh(AuthRequest.Refresh request) {
-        // 1. JWT 서명·만료 검증
+
+        log.info("[토큰 갱신] 토큰 갱신 호출");
+
+        // JWT 서명·만료 검증
         jwtUtil.parseClaims(request.refreshToken());
 
-        // 2. DB에서 유효한 토큰 조회 (revoked=false, used=false)
+        // 유효한 토큰 조회 (revoked=false, used=false)
         String hash = hashToken(request.refreshToken());
-        RefreshToken oldToken = refreshTokenRepository.findByTokenHashAndRevokedFalseAndUsedFalse(hash)
-                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
+
+        RefreshToken oldToken = refreshTokenRepository.findByActiveTokenHash(hash)
+                .orElseThrow(() -> {
+                    log.warn("[토큰 갱신] 유효하지 않은 토큰입니다.");
+                    return new CustomException(AuthErrorCode.INVALID_TOKEN);
+                });
 
         User user = oldToken.getUser();
 
-        // 3. WARD면 wardId 조회, GUARDIAN이면 null
+        // WARD면 wardId 조회, GUARDIAN이면 null
         Long wardId = null;
         if (user.getRole() == WARD) {
             wardId = wardRepository.findByUser_Id(user.getId())
                     .map(Ward::getId)
-                    .orElseThrow(() -> new CustomException(AuthErrorCode.WARD_NOT_FOUND));
+                    .orElseThrow(() -> {
+                        log.warn("[토큰 갱신] WARD를 찾을 수 없습니다. userId = {}", user.getId());
+                        return new CustomException(AuthErrorCode.WARD_NOT_FOUND);
+                    });
         }
 
-        // 4. 기존 토큰 used 처리 (재사용 공격 방지)
+        // 기존 토큰 used 처리 (재사용 공격 방지)
         oldToken.markUsed();
 
-        // 5. 새 토큰 발급 및 저장
-        String newAccessTokenString = jwtUtil.generateAccessToken(user.getId(), wardId, user.getRole().name());
+        // 새 토큰 발급 및 저장
+        String newAccessTokenString = jwtUtil
+                .generateAccessToken(user.getId(), wardId, user.getRole().name());
+
         String newRefreshTokenString = jwtUtil.generateRefreshToken(user.getId());
 
-        RefreshToken refreshToken = RefreshToken.create(user, hashToken(newRefreshTokenString), oldToken.getDeviceId());
+        RefreshToken refreshToken = RefreshToken
+                .create(user, hashToken(newRefreshTokenString), oldToken.getDeviceId());
+
         refreshTokenRepository.save(refreshToken);
 
+        log.info("[토큰 갱신] 토큰 갱신 완료");
         return AuthResponseMapper
                 .toTokenResponse(newAccessTokenString, newRefreshTokenString, user.getRole().name());
     }

@@ -15,7 +15,7 @@ public enum AuthErrorCode implements ErrorCode {
     PHONE_NOT_VERIFIED(HttpStatus.BAD_REQUEST, "AUTH4004", "휴대폰 인증이 완료되지 않았습니다."),
     REQUIRED_CONSENT_NOT_AGREED(HttpStatus.BAD_REQUEST, "AUTH4005", "필수 약관(이용약관, 개인정보처리방침)에 동의해야 합니다."),
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "AUTH4011", "전화번호 또는 비밀번호가 올바르지 않습니다."),
-    INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH4012", "유효하지 않은     토큰입니다."),
+    INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH4012", "유효하지 않은 토큰입니다."),
     EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH4013", "만료된 토큰입니다."),
     REVOKED_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH4014", "이미 무효화된 토큰입니다."),
     PHONE_DUPLICATED(HttpStatus.CONFLICT, "AUTH409", "이미 사용 중인 전화번호입니다."),

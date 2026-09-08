@@ -7,6 +7,7 @@ import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -15,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 @Component
+@Slf4j
 public class JwtUtil {
 
     private final SecretKey secretKey;
@@ -53,7 +55,7 @@ public class JwtUtil {
                 .compact();
     }
 
-    // Claims 추출
+    // Claims(페이로드) 추출
     public Claims parseClaims(String token) {
         try {
             return Jwts.parser()
@@ -64,6 +66,7 @@ public class JwtUtil {
         } catch (ExpiredJwtException e) {
             throw new CustomException(AuthErrorCode.EXPIRED_TOKEN);
         } catch (JwtException | IllegalArgumentException e) {
+            log.warn("[JWT] 유효하지 않은 토큰 요청");
             throw new CustomException(AuthErrorCode.INVALID_TOKEN);
         }
     }
