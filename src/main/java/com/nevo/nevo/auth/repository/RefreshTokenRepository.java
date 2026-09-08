@@ -30,7 +30,13 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
             @Param("now")LocalDateTime now
             );
 
-    Optional<RefreshToken> findByTokenHashAndRevokedFalseAndUsedFalse(String tokenHash);
+    @Query("""
+            select token from RefreshToken token
+                where token.tokenHash = :tokenHash
+                    and token.revoked = false
+                        and token.used = false
+    """)
+    Optional<RefreshToken> findByActiveTokenHash(@Param("tokenHash") String tokenHash);
 
     // 만료일시가 지난 토큰 제거
     void deleteAllByExpiresAtBefore(LocalDateTime now);
