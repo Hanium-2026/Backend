@@ -13,6 +13,7 @@ import com.nevo.nevo.global.exception.CustomException;
 import com.nevo.nevo.user.entity.Consent;
 import com.nevo.nevo.user.entity.ConsentType;
 import com.nevo.nevo.user.entity.User;
+import com.nevo.nevo.user.exception.code.UserErrorCode;
 import com.nevo.nevo.user.repository.ConsentRepository;
 import com.nevo.nevo.user.repository.UserRepository;
 import com.nevo.nevo.ward.entity.Ward;
@@ -282,6 +283,9 @@ public class AuthService {
     // 비밀번호 재설정 요청 - POST /api/auth/password-reset/request
     // 전화번호 존재 여부와 무관하게 항상 성공 응답 (사용자 존재 여부 노출 방지)
     public void requestPasswordReset(String phone) {
+
+        log.debug("[비밀번호 재설정] 비밀번호 재설정 시작 phone = {}", phone);
+
         userRepository.findByPhoneAndDeletedAtIsNull(phone)
                 .ifPresent(user -> smsService.sendOtp(phone, SmsVerificationPurpose.PASSWORD_RESET));
     }
@@ -290,20 +294,23 @@ public class AuthService {
     // /sms/verify(PASSWORD_RESET) 완료 후 호출해야 함
     @Transactional
     public void confirmPasswordReset(AuthRequest.PasswordResetConfirm request) {
-        // 1. 인증 완료 여부 확인
+        // 인증 완료 여부 확인
         smsService.consumeVerified(request.phone(), SmsVerificationPurpose.PASSWORD_RESET);
 
-        // 2. 사용자 조회
+        // 사용자 조회
         User user = userRepository.findByPhoneAndDeletedAtIsNull(request.phone())
-                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_CREDENTIALS));
+                .orElseThrow(() -> {
+                    log.warn("[비밀번호 재설정 확인] 사용자를 찾을 수 없습니다");
+                    return new CustomException(UserErrorCode.USER_NOT_FOUND);}
+                );
 
-        // 3. 비밀번호 변경
+        // 비밀번호 변경
         user.updatePassword(passwordEncoder.encode(request.newPassword()));
 
-        // 4. 비밀번호 변경 후 전체 세션 강제 로그아웃
-        refreshTokenRepository.deleteByUser_Id(user.getId());
+        // 비밀번호 변경 후 전체 세션 강제 로그아웃
+        refreshTokenRepository.revokeAllByUserId(user.getId());
 
-        // 5. 비밀번호 변경 알림 발송 (공격자에 의한 변경 감지용)
+        // 비밀번호 변경 알림 발송
         smsService.sendPasswordChangedNotification(request.phone());
     }
 

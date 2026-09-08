@@ -2,6 +2,7 @@ package com.nevo.nevo.auth.repository;
 
 import com.nevo.nevo.auth.entity.RefreshToken;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -14,7 +15,12 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
     //토큰 해시로 조회했을 때 해당 토큰이 존재하지 않을 수 있기 때문에 Optional.
     Optional<RefreshToken> findByTokenHash(String tokenHash);
 
-    void deleteByUser_Id(Long userId);
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            update RefreshToken token set token.revoked = true
+                where token.user.id = :userId and token.revoked = false
+    """)
+    void revokeAllByUserId(Long userId);
 
     List<RefreshToken> findAllByUser_IdAndDeviceIdAndRevokedFalse(Long userId, String deviceId);
 
@@ -39,5 +45,12 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
     Optional<RefreshToken> findByActiveTokenHash(@Param("tokenHash") String tokenHash);
 
     // 만료일시가 지난 토큰 제거
-    void deleteAllByExpiresAtBefore(LocalDateTime now);
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            delete from RefreshToken token
+                where token.revoked = true
+                    or token.used = true
+                        or token.expiresAt <= :now
+    """)
+    void deleteAllInvalidTokens(@Param("now") LocalDateTime now);
 }
