@@ -20,5 +20,8 @@ public class SessionCleanupService {
         stepService.deleteExpiredScores();
         stepService.completeActiveSessions();
         stepService.expireOrphanedScores();
+
+        // 매일 자정에 db에 쌓인 만료된 토큰 제거
+        stepService.deleteExpiredRefreshTokens();
     }
 }

@@ -4,8 +4,7 @@ import com.nevo.nevo.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.sql.*;
-import java.util.Scanner;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "refresh_tokens")
@@ -29,6 +28,10 @@ public class RefreshToken {
     @Builder.Default
     @Column(nullable = false)
     private Boolean revoked = false;
+
+    @Builder.Default
+    @Column(name = "expires_at", nullable = false)
+    private LocalDateTime expiresAt = LocalDateTime.now().plusDays(30);
 
 
     // 엑세스 만료시 /refresh 호출 -> 새로운 token 교체 -> 기존: used=true
