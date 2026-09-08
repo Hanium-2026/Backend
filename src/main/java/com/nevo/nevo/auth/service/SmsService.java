@@ -48,7 +48,9 @@ public class SmsService {
     @Async
     public void sendOtp(String phone, SmsVerificationPurpose purpose) {
         String code = generateOtp();
-        redisTemplate.opsForValue().set(otpKey(phone, purpose), code, OTP_TTL_SECONDS, TimeUnit.SECONDS);
+
+        redisTemplate.opsForValue()
+                .set(otpKey(phone, purpose), code, OTP_TTL_SECONDS, TimeUnit.SECONDS);
 
         // TODO: 네이버 클라우드 SMS API 연동 — 개발 단계에서는 로그로 대체
         log.info("[SMS][DEV ONLY] phone={}, purpose={}, code={}", phone, purpose, code);

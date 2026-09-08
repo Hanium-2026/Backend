@@ -51,7 +51,7 @@ public class SessionCleanupStepService {
 
     @Transactional
     public void deleteExpiredRefreshTokens() {
-        refreshTokenRepository.deleteAllByExpiresAtBefore(LocalDateTime.now());
+        refreshTokenRepository.deleteAllInvalidTokens(LocalDateTime.now());
         log.info("[CleanUp] 만료된 리프레쉬 토큰 삭제 완료");
     }
 }
