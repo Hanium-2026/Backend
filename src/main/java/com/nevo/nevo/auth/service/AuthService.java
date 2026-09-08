@@ -189,7 +189,7 @@ public class AuthService {
 
         // 디바이스 수 제한: 활성 토큰이 5개 이상이면 오래된 것부터 revoke
         List<RefreshToken> activeTokens = refreshTokenRepository
-                .findAllActiveRefreshToken(user.getId());
+                .findAllActiveRefreshToken(user.getId(), LocalDateTime.now());
 
         if (activeTokens.size() >= 5) {
             activeTokens.subList(0, activeTokens.size() - 4).forEach(RefreshToken::revoke);
@@ -206,12 +206,18 @@ public class AuthService {
     // 로그아웃 - POST /api/auth/logout
     @Transactional
     public void logout(AuthRequest.Logout request) {
+
+        log.info("[로그아웃] 로그아웃 api 호출");
         String hash = hashToken(request.refreshToken());
 
         RefreshToken token = refreshTokenRepository.findByTokenHash(hash)
-                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
+                .orElseThrow(() -> {
+                    log.warn("[로그아웃] 유효하지 않은 토큰입니다.");
+                    return new CustomException(AuthErrorCode.INVALID_TOKEN);
+                });
 
         if (token.getRevoked() || token.getUsed()) {
+            log.warn("[로그아웃] 이미 무효화되거나 만료된 토큰입니다.");
             throw new CustomException(AuthErrorCode.REVOKED_TOKEN);
         }
 

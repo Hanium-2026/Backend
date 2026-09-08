@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,9 +22,16 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
             select token from RefreshToken token
                 where token.user.id = :userId
                     and token.revoked = false and token.used = false
+                        and token.expiresAt > :now
                         order by token.id asc
     """)
-    List<RefreshToken> findAllActiveRefreshToken(@Param("userId") Long userId);
+    List<RefreshToken> findAllActiveRefreshToken(
+            @Param("userId") Long userId,
+            @Param("now")LocalDateTime now
+            );
 
     Optional<RefreshToken> findByTokenHashAndRevokedFalseAndUsedFalse(String tokenHash);
+
+    // 만료일시가 지난 토큰 제거
+    void deleteAllByExpiresAtBefore(LocalDateTime now);
 }

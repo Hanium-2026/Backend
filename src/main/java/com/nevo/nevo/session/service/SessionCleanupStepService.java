@@ -1,5 +1,6 @@
 package com.nevo.nevo.session.service;
 
+import com.nevo.nevo.auth.repository.RefreshTokenRepository;
 import com.nevo.nevo.session.entity.SessionStatus;
 import com.nevo.nevo.session.repository.GaitSessionRepository;
 import com.nevo.nevo.session.repository.SessionScoreRepository;
@@ -18,6 +19,7 @@ public class SessionCleanupStepService {
 
     private final GaitSessionRepository gaitSessionRepository;
     private final SessionScoreRepository sessionScoreRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     @Transactional
     public void deleteExpiredScores() {
@@ -45,5 +47,11 @@ public class SessionCleanupStepService {
                 LocalDateTime.now().minusDays(1)  // 하루 이상 지난 세션만 대상
         );
         log.info("[CleanUp] analysis 누락 세션 점수 {}건 만료 처리", orphaned);
+    }
+
+    @Transactional
+    public void deleteExpiredRefreshTokens() {
+        refreshTokenRepository.deleteAllByExpiresAtBefore(LocalDateTime.now());
+        log.info("[CleanUp] 만료된 리프레쉬 토큰 삭제 완료");
     }
 }
