@@ -6,6 +6,7 @@ import com.nevo.nevo.global.exception.SuccessResponse;
 import com.nevo.nevo.session.dto.request.SessionRequest;
 import com.nevo.nevo.session.dto.response.SessionResponse;
 import com.nevo.nevo.session.exception.code.SessionErrorCode;
+import com.nevo.nevo.session.exception.code.SessionSuccessCode;
 import com.nevo.nevo.session.service.SessionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -28,8 +29,11 @@ public class SessionController {
     public ResponseEntity<SuccessResponse<SessionResponse.Start>> start(
             @AuthenticationPrincipal JwtAuthentication auth
     ) {
-        if (auth.wardId() == null) throw new CustomException(SessionErrorCode.SESSION_FORBIDDEN);
-        return sessionService.start(auth.wardId());
+        SessionResponse.Start startResponse = sessionService.start(auth.wardId());
+
+        return ResponseEntity
+                .status(201)
+                .body(SuccessResponse.of(SessionSuccessCode.SESSION_STARTED, startResponse));
     }
 
     @GetMapping("/active")
