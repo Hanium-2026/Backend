@@ -12,11 +12,14 @@ import com.nevo.nevo.session.entity.SessionStatus;
 import com.nevo.nevo.session.event.StrokeDangerEvent;
 import com.nevo.nevo.session.exception.code.SessionErrorCode;
 import com.nevo.nevo.session.exception.code.SessionSuccessCode;
+import com.nevo.nevo.session.mapper.SessionResponseMapper;
 import com.nevo.nevo.session.repository.GaitSessionRepository;
 import com.nevo.nevo.session.repository.SessionScoreRepository;
 import com.nevo.nevo.ward.entity.Ward;
+import com.nevo.nevo.ward.exception.code.WardErrorCode;
 import com.nevo.nevo.ward.repository.WardRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -32,6 +35,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 @Transactional(readOnly = true)
 public class SessionService {
 
@@ -45,27 +49,37 @@ public class SessionService {
     // 보행 세션 시작
     // 하루당 1개 세션 보장: ACTIVE 세션이 이미 존재하면 SESSION409 반환
     @Transactional
-    public ResponseEntity<SuccessResponse<SessionResponse.Start>> start(Long wardId) {
-        gaitSessionRepository.findByWard_IdAndStatus(wardId, SessionStatus.ACTIVE)
-                .ifPresent(s -> { throw new CustomException(SessionErrorCode.SESSION_ALREADY_ACTIVE); });
+    public SessionResponse.Start start(Long wardId) {
+
+        // WARD인지 확인
+        if (wardId == null) {
+            log.warn("[보행 세션 시작] WARD만이 세션을 시작 할 수 있습니다.");
+            throw new CustomException(SessionErrorCode.SESSION_FORBIDDEN);
+        }
+
+        log.info("[보행 세션 시작] 세션 시작 wardId = {}", wardId);
+
+        // 이미 진행중인(ACTIVE) 세션이 있는지 확인
+        if (gaitSessionRepository.existsByWard_IdAndStatus(wardId, SessionStatus.ACTIVE)) {
+            log.warn("[보행 세션 시작] 이미 진행중인 세션이 있습니다.");
+            throw new CustomException(SessionErrorCode.SESSION_ALREADY_ACTIVE);
+        }
 
         Ward ward = wardRepository.findById(wardId)
-                .orElseThrow(() -> new CustomException(SessionErrorCode.SESSION_FORBIDDEN));
+                .orElseThrow(() -> {
+                    log.warn("[보행 세션 시작] WARD 정보를 찾을 수 없습니다.");
+                    return new CustomException(WardErrorCode.WARD_NOT_FOUND);
+                });
 
-        GaitSession session = gaitSessionRepository.save(
-                GaitSession.builder()
-                        .ward(ward)
-                        .startedAt(LocalDateTime.now())
-                        .build()
-        );
+        // 세션 생성 및 저장
+        GaitSession session = GaitSession.create(ward);
 
-        return ResponseEntity.status(201).body(SuccessResponse.of(
-                SessionSuccessCode.SESSION_STARTED,
-                SessionResponse.Start.builder()
-                        .sessionId(session.getId())
-                        .startedAt(session.getStartedAt())
-                        .build()
-        ));
+        gaitSessionRepository.save(session);
+
+        log.info("[보행 세션 시작] 세션 시작 완료 wardId = {}", wardId);
+
+        return SessionResponseMapper
+                .toStartResponse(session.getId(), session.getStartedAt());
     }
 
     // 현재 진행 중인 세션 조회

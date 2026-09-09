@@ -2,19 +2,16 @@ package com.nevo.nevo.session.entity;
 
 import com.nevo.nevo.ward.entity.Ward;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "gait_sessions")
 @Getter
-@Builder
-@AllArgsConstructor
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@Builder(access = AccessLevel.PRIVATE)
 public class GaitSession {
 
     @Id
@@ -40,6 +37,15 @@ public class GaitSession {
 
     @Column(name = "ended_at")
     private LocalDateTime endedAt;
+
+
+
+    public static GaitSession create(Ward ward) {
+        return GaitSession.builder()
+                .ward(ward)
+                .startedAt(LocalDateTime.now())
+                .build();
+    }
 
     public void complete(LocalDateTime endedAt) {
         this.status = SessionStatus.COMPLETED;
