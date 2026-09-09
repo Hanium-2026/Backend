@@ -33,6 +33,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.List;
 
+import static com.nevo.nevo.session.entity.SessionStatus.*;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -57,7 +59,7 @@ public class SessionService {
         log.info("[보행 세션 시작] 세션 시작 wardId = {}", wardId);
 
         // 이미 진행중인(ACTIVE) 세션이 있는지 확인
-        if (gaitSessionRepository.existsByWard_IdAndStatus(wardId, SessionStatus.ACTIVE)) {
+        if (gaitSessionRepository.existsByWard_IdAndStatus(wardId, ACTIVE)) {
             log.warn("[보행 세션 시작] 이미 진행중인 세션이 있습니다.");
             throw new CustomException(SessionErrorCode.SESSION_ALREADY_ACTIVE);
         }
@@ -88,7 +90,7 @@ public class SessionService {
 
         log.info("[진행중인 세션 조회] 세션 조회, wardId = {}", wardId);
 
-        GaitSession session = gaitSessionRepository.findByWard_IdAndStatus(wardId, SessionStatus.ACTIVE)
+        GaitSession session = gaitSessionRepository.findByWard_IdAndStatus(wardId, ACTIVE)
                 .orElseThrow(() -> {
                     log.warn("[진행중인 세션 조회] 현재 진행중인 세션이 없습니다.");
                     return new CustomException(SessionErrorCode.SESSION_NOT_FOUND);
@@ -101,23 +103,30 @@ public class SessionService {
     }
 
     // 보행 세션 수동 종료
-    // COMPLETED면 멱등 처리(200 반환)
     @Transactional
-    public ResponseEntity<SuccessResponse<Void>> stop(Long sessionId, Long wardId) {
+    public void stop(Long sessionId, Long wardId) {
+
+        // WARD 인지 검증
+        validationWard(wardId);
+
+        log.info("[세션 종료] 세션 종료 시작, sessionId = {}, wardId = {}", sessionId, wardId);
+
+        // WARD 본인의 세션인지 검증
         GaitSession session = findSessionAndValidateOwner(sessionId, wardId);
 
-        // 이미 종료된 세션이면 멱등 처리 (앱 재시도 대비)
-        if (session.getStatus() == SessionStatus.COMPLETED) {
-            return ResponseEntity.ok(SuccessResponse.of(SessionSuccessCode.SESSION_STOPPED));
+        // 이미 종료된 세션이면
+        if (session.getStatus() == COMPLETED) {
+            log.warn("[세션 종료] 이미 종료되 세션입니다. sessionId = {}", sessionId);
+            throw new CustomException(SessionErrorCode.SESSION_ALREADY_COMPLETED);
         }
 
         session.complete(LocalDateTime.now());
 
-        return ResponseEntity.ok(SuccessResponse.of(SessionSuccessCode.SESSION_STOPPED));
+        log.info("[세션 종료] 세션 종료 완료");
     }
+
     // 분당 보행 데이터 배치 업로드
     // 앱이 SQLite에 쌓아둔 데이터를 네트워크 복구 시 한 번에 전송하는 오프라인 우선 설계
-
     @Transactional
     public ResponseEntity<SuccessResponse<SessionResponse.DataUpload>> uploadData(Long sessionId, Long wardId,
                                                                                    SessionRequest.DataUpload request) {
@@ -221,19 +230,10 @@ public class SessionService {
 
         return ResponseEntity.ok(SuccessResponse.of(SessionSuccessCode.ANALYSIS_UPLOADED));
     }
-    private GaitSession findSessionAndValidateOwner(Long sessionId, Long wardId) {
-        GaitSession session = gaitSessionRepository.findById(sessionId)
-                .orElseThrow(() -> new CustomException(SessionErrorCode.SESSION_NOT_FOUND));
-        if (!session.getWard().getId().equals(wardId)) {
-            throw new CustomException(SessionErrorCode.SESSION_FORBIDDEN);
-        }
-        return session;
-    }
 
     // 일별 보행 통계 원자적 UPSERT
     // 당일 첫 세션이면 INSERT, 이후 세션이면 누적 평균·최솟값·최댓값 갱신
     // ON CONFLICT DO UPDATE로 SELECT 후 UPDATE 패턴의 레이스 컨디션 방지
-
     private void upsertDailyScore(Long wardId, Float avgScore, Float minScore, Float maxScore,
                                    Float variabilityScore, Float asymmetryScore, Integer dangerCount) {
         LocalDateTime now = LocalDateTime.now();
@@ -262,9 +262,26 @@ public class SessionService {
                 Timestamp.valueOf(now), Timestamp.valueOf(now)
         );
     }
+
+    private GaitSession findSessionAndValidateOwner(Long sessionId, Long wardId) {
+
+        GaitSession session = gaitSessionRepository.findById(sessionId)
+                .orElseThrow(() -> {
+                    log.warn("[세션, 주인 검증] 세션을 찾을 수 없습니다. sessionId = {}", sessionId);
+                    return new CustomException(SessionErrorCode.SESSION_NOT_FOUND);});
+
+        // 세션 주인 검증
+        if (!session.getWard().getId().equals(wardId)) {
+            log.warn("[세션, 주인 검증] 본인의 세션만 종료 할 수 있습니다. wardId = {}, session.ward.id = {}", wardId, session.getWard().getId());
+            throw new CustomException(SessionErrorCode.SESSION_FORBIDDEN);
+        }
+
+        return session;
+    }
+
     private static void validationWard(Long wardId) {
         if (wardId == null) {
-            log.warn("[보행 세션 시작] WARD만이 세션을 시작 할 수 있습니다.");
+            log.warn("[WARD 검증] WARD가 아닙니다. ");
             throw new CustomException(SessionErrorCode.SESSION_FORBIDDEN);
         }
     }
