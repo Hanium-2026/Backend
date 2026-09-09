@@ -54,8 +54,10 @@ public class SessionController {
             @AuthenticationPrincipal JwtAuthentication auth,
             @PathVariable Long sessionId
     ) {
-        if (auth.wardId() == null) throw new CustomException(SessionErrorCode.SESSION_FORBIDDEN);
-        return sessionService.stop(sessionId, auth.wardId());
+
+        sessionService.stop(sessionId, auth.wardId());
+
+        return ResponseEntity.ok(SuccessResponse.of(SessionSuccessCode.SESSION_STOPPED));
     }
 
     @PostMapping("/{sessionId}/data")
