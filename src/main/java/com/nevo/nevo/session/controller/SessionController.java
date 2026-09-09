@@ -26,10 +26,10 @@ public class SessionController {
 
     @PostMapping("/start")
     @Operation(summary = "보행 측정 시작", description = "보행 측정 세션을 시작합니다. (WARD 전용)")
-    public ResponseEntity<SuccessResponse<SessionResponse.Start>> start(
+    public ResponseEntity<SuccessResponse<SessionResponse.sessionInfo>> start(
             @AuthenticationPrincipal JwtAuthentication auth
     ) {
-        SessionResponse.Start startResponse = sessionService.start(auth.wardId());
+        SessionResponse.sessionInfo startResponse = sessionService.start(auth.wardId());
 
         return ResponseEntity
                 .status(201)
@@ -38,11 +38,14 @@ public class SessionController {
 
     @GetMapping("/active")
     @Operation(summary = "진행 중인 세션 조회", description = "현재 진행 중인 보행 세션을 조회합니다. (WARD 전용)")
-    public ResponseEntity<SuccessResponse<SessionResponse.Active>> getActive(
+    public ResponseEntity<SuccessResponse<SessionResponse.sessionInfo>> getActive(
             @AuthenticationPrincipal JwtAuthentication auth
     ) {
-        if (auth.wardId() == null) throw new CustomException(SessionErrorCode.SESSION_FORBIDDEN);
-        return sessionService.getActive(auth.wardId());
+
+        SessionResponse.sessionInfo sessionResponse = sessionService.getActive(auth.wardId());
+
+        return ResponseEntity.ok(SuccessResponse.of(
+                SessionSuccessCode.SESSION_ACTIVE_FOUND,sessionResponse));
     }
 
     @PostMapping("/{sessionId}/stop")

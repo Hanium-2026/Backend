@@ -49,13 +49,10 @@ public class SessionService {
     // 보행 세션 시작
     // 하루당 1개 세션 보장: ACTIVE 세션이 이미 존재하면 SESSION409 반환
     @Transactional
-    public SessionResponse.Start start(Long wardId) {
+    public SessionResponse.sessionInfo start(Long wardId) {
 
         // WARD인지 확인
-        if (wardId == null) {
-            log.warn("[보행 세션 시작] WARD만이 세션을 시작 할 수 있습니다.");
-            throw new CustomException(SessionErrorCode.SESSION_FORBIDDEN);
-        }
+        validationWard(wardId);
 
         log.info("[보행 세션 시작] 세션 시작 wardId = {}", wardId);
 
@@ -79,22 +76,28 @@ public class SessionService {
         log.info("[보행 세션 시작] 세션 시작 완료 wardId = {}", wardId);
 
         return SessionResponseMapper
-                .toStartResponse(session.getId(), session.getStartedAt());
+                .toSessionInfoResponse(session.getId(), session.getStartedAt());
     }
 
     // 현재 진행 중인 세션 조회
     // 앱 재시작(배터리 방전 등) 시 로컬 sessionId 복원용
-    public ResponseEntity<SuccessResponse<SessionResponse.Active>> getActive(Long wardId) {
-        GaitSession session = gaitSessionRepository.findByWard_IdAndStatus(wardId, SessionStatus.ACTIVE)
-                .orElseThrow(() -> new CustomException(SessionErrorCode.SESSION_NOT_FOUND));
+    public SessionResponse.sessionInfo getActive(Long wardId) {
 
-        return ResponseEntity.ok(SuccessResponse.of(
-                SessionSuccessCode.SESSION_ACTIVE_FOUND,
-                SessionResponse.Active.builder()
-                        .sessionId(session.getId())
-                        .startedAt(session.getStartedAt())
-                        .build()
-        ));
+        // WARD인지 확인
+        validationWard(wardId);
+
+        log.info("[진행중인 세션 조회] 세션 조회, wardId = {}", wardId);
+
+        GaitSession session = gaitSessionRepository.findByWard_IdAndStatus(wardId, SessionStatus.ACTIVE)
+                .orElseThrow(() -> {
+                    log.warn("[진행중인 세션 조회] 현재 진행중인 세션이 없습니다.");
+                    return new CustomException(SessionErrorCode.SESSION_NOT_FOUND);
+                });
+
+        log.info("[진행중인 세션 조화] 세션 조회 완료, sessionId = {}", session.getId());
+
+        return SessionResponseMapper
+                .toSessionInfoResponse(session.getId(), session.getStartedAt());
     }
 
     // 보행 세션 수동 종료
@@ -112,9 +115,9 @@ public class SessionService {
 
         return ResponseEntity.ok(SuccessResponse.of(SessionSuccessCode.SESSION_STOPPED));
     }
-
     // 분당 보행 데이터 배치 업로드
     // 앱이 SQLite에 쌓아둔 데이터를 네트워크 복구 시 한 번에 전송하는 오프라인 우선 설계
+
     @Transactional
     public ResponseEntity<SuccessResponse<SessionResponse.DataUpload>> uploadData(Long sessionId, Long wardId,
                                                                                    SessionRequest.DataUpload request) {
@@ -171,9 +174,9 @@ public class SessionService {
                         .build()
         ));
     }
-
     // 세션 종합 분석 결과 업로드
     // 앱이 세션 종료 후 TFLite 분석을 완료하면 호출, gait_reports에 저장하고 daily_scores 갱신
+
     @Transactional
     public ResponseEntity<SuccessResponse<Void>> uploadAnalysis(Long sessionId, Long wardId,
                                                                  SessionRequest.AnalysisUpload request) {
@@ -218,7 +221,6 @@ public class SessionService {
 
         return ResponseEntity.ok(SuccessResponse.of(SessionSuccessCode.ANALYSIS_UPLOADED));
     }
-
     private GaitSession findSessionAndValidateOwner(Long sessionId, Long wardId) {
         GaitSession session = gaitSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new CustomException(SessionErrorCode.SESSION_NOT_FOUND));
@@ -231,6 +233,7 @@ public class SessionService {
     // 일별 보행 통계 원자적 UPSERT
     // 당일 첫 세션이면 INSERT, 이후 세션이면 누적 평균·최솟값·최댓값 갱신
     // ON CONFLICT DO UPDATE로 SELECT 후 UPDATE 패턴의 레이스 컨디션 방지
+
     private void upsertDailyScore(Long wardId, Float avgScore, Float minScore, Float maxScore,
                                    Float variabilityScore, Float asymmetryScore, Integer dangerCount) {
         LocalDateTime now = LocalDateTime.now();
@@ -258,5 +261,11 @@ public class SessionService {
                 variabilityScore, asymmetryScore, dangerCount,
                 Timestamp.valueOf(now), Timestamp.valueOf(now)
         );
+    }
+    private static void validationWard(Long wardId) {
+        if (wardId == null) {
+            log.warn("[보행 세션 시작] WARD만이 세션을 시작 할 수 있습니다.");
+            throw new CustomException(SessionErrorCode.SESSION_FORBIDDEN);
+        }
     }
 }
