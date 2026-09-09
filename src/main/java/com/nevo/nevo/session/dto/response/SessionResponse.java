@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 public class SessionResponse {
 
     @Builder
-    public record Start(
+    public record sessionInfo(
             Long sessionId,
             LocalDateTime startedAt
     ) {}

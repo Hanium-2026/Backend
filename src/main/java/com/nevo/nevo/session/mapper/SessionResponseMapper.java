@@ -6,8 +6,8 @@ import java.time.LocalDateTime;
 
 public class SessionResponseMapper {
 
-    public static SessionResponse.Start toStartResponse(Long sessionId, LocalDateTime startedAt) {
-        return SessionResponse.Start.builder()
+    public static SessionResponse.sessionInfo toSessionInfoResponse(Long sessionId, LocalDateTime startedAt) {
+        return SessionResponse.sessionInfo.builder()
                 .sessionId(sessionId)
                 .startedAt(startedAt)
                 .build();
